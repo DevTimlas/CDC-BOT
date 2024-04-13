@@ -1,0 +1,3 @@
+Run through enquiry and qualification needs, ask user what they want in a very friendly way:
+
+    What do they want from these options? : -Therapy? -Info? -Online support? -diagnoses?

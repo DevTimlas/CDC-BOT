@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDC BOT Interface</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        #messages-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 100px;
+        }
+        .card-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .user-message {
+            text-align: right;
+            color: blue;
+            margin-bottom: 5px;
+        }
+        .bot-message {
+            text-align: left;
+            color: green;
+            margin-bottom: 5px;
+        }
+        .chat-footer {
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="container" style="max-width: 450px;">
+                    <div class="card">
+                        <div class="card-header">Chat Interface</div>
+                        <div class="card-body" id="messages-container">
+                            <!-- Chat messages will be displayed here -->
+                        </div>
+                        <div class="card-footer" id="user-choice">
+                            <p>Are you a new user or returning user?</p>
+                            <button class="btn btn-primary" id="new-user-btn">New User</button>
+                            <button class="btn btn-secondary" id="returning-user-btn">Returning User</button>
+                        </div>
+                        
+                        <div class="card-footer d-none" id="chat-form-container">
+                            <form id="chat-form">
+                                <div class="input-group">
+                                    <input type="text" id="message" class="form-control" placeholder="Type a message...">
+                                    <div class="input-group-append">
+                                        <button type="submit" class="btn btn-primary">Send</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var messagesContainer = document.getElementById("messages-container");
+            var chatForm = document.getElementById("chat-form");
+            var messageInput = document.getElementById("message");
+            var userChoice = document.getElementById("user-choice");
+            var chatFormContainer = document.getElementById("chat-form-container");
+            var newUserBtn = document.getElementById("new-user-btn");
+            var returningUserBtn = document.getElementById("returning-user-btn");
+
+            var isNewUser = true;
+            var initialMessage = "Welcome! Our goal is to support you and your family on your journey, whatever stage that may be. I am an advanced language model bot, which has been carefully guided to work through an engaged support system for our entire site.";
+            var new_user_msg = "Say Hi to start new conversation";
+
+            newUserBtn.addEventListener("click", function() {
+                isNewUser = true;
+                userChoice.classList.add("d-none");
+                chatFormContainer.classList.remove("d-none");
+                appendMessage(initialMessage, "bot");
+                appendMessage("😁😁😁😁 " + new_user_msg, "bot");
+            });
+
+            returningUserBtn.addEventListener("click", function() {
+                isNewUser = false
+                appendMessage("Welcome back! Please input your name#tag to lookup your details.", "bot");
+                userChoice.classList.add("d-none");
+                userChoice.classList.add("d-none");
+                chatFormContainer.classList.remove("d-none");
+            });
+            
+
+            chatForm.addEventListener("submit", function(event) {
+                event.preventDefault();
+                var message = messageInput.value;
+                appendMessage("You: " + message, "user");
+                sendMessageNU(message);
+                messageInput.value = "";
+            });
+
+             function appendMessage(message, sender) {
+                var messageLines = message.split('\n');
+                messageLines.forEach(function(line) {
+                    var messageElement = document.createElement("p");
+                    messageElement.textContent = line;
+                    if (sender === "user") {
+                        messageElement.classList.add("user-message");
+                    } else if (sender === "bot") {
+                        messageElement.classList.add("bot-message");
+                    }
+                    messagesContainer.appendChild(messageElement);
+                });
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+
+            function sendMessageNU(message) {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", isNewUser ? "/chat_nu" : "/chat_ru");
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        appendMessage(response.response, "bot");
+                    }
+                };
+                xhr.send(JSON.stringify({ text: message }));
+            }
+        });
+    </script>
+</body>
+</html>
