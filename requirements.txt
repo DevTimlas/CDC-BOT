@@ -1,0 +1,6 @@
+flask
+phonenumbers
+langchain_core
+langchain_openai
+langchain
+langchain_openai
