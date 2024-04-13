@@ -33,6 +33,9 @@ def chat_nu():
 
     global collected_details
 
+    llm = ChatOpenAI(temperature=0, openai_api_key="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", model='gpt-4')
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
     sys_prompt = open('ask_user_details.txt', 'r').read().strip()
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt), 
                                                MessagesPlaceholder(variable_name="chat_history"), 
