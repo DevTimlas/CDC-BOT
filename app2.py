@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import re
 import phonenumbers
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,6 +17,7 @@ llm = ChatOpenAI(temperature=0, openai_api_key="sk-nf9jCgUAEDRIUs3YGWlMT3BlbkFJP
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 app = Flask(__name__)
+CORS(app)
 
 # List to keep track of collected details
 collected_details = []
