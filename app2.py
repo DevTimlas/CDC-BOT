@@ -13,8 +13,6 @@ from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import LLMChain
 
-llm = ChatOpenAI(temperature=0, openai_api_key="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", model='gpt-4')
-memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 app = Flask(__name__)
 CORS(app)
