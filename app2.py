@@ -1,6 +1,5 @@
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
-import re
+from flask import Flask, request, jsonify, render_template, session
+import re, uuid
 import phonenumbers
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts.chat import (
@@ -15,10 +14,23 @@ from langchain.chains import LLMChain
 
 
 app = Flask(__name__)
-CORS(app)
 
-# List to keep track of collected details
-collected_details = []
+user_states = {}
+
+# collected_details = []
+rand_key = str(uuid.uuid4())
+# memory = ConversationBufferMemory(memory_key=rand_key, return_messages=True)
+
+def ask_ai(memory):
+    llm = ChatOpenAI(temperature=0, openai_api_key="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", model='gpt-4')
+    sys_prompt = open('ask_user_details.txt', 'r').read().strip()
+    prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt), 
+                                               MessagesPlaceholder(variable_name=rand_key), 
+                                               HumanMessagePromptTemplate.from_template("{text}")])    
+    
+    conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
+    return conversation
+
 
 @app.route('/')
 def index():
@@ -29,16 +41,21 @@ def chat_nu():
     data = request.get_json()
     user_message = data['text']
 
-    global collected_details
+    # Generate a unique identifier for each user
+    user_id = request.remote_addr + str(request.user_agent)
+    if user_id not in user_states:
+        user_states[user_id] = {
+            'collected_details': [],
+            'memory': ConversationBufferMemory(memory_key=rand_key, return_messages=True)
+        }
 
-    llm = ChatOpenAI(temperature=0, openai_api_key="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", model='gpt-4')
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    # Use the user's state instead of the global state
+    collected_details = user_states[user_id]['collected_details']
+    memory = user_states[user_id]['memory']
 
-    sys_prompt = open('ask_user_details.txt', 'r').read().strip()
-    prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt), 
-                                               MessagesPlaceholder(variable_name="chat_history"), 
-                                               HumanMessagePromptTemplate.from_template("{text}")])
-    conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)    
+    # global collected_details
+
+    conversation = ask_ai(memory)
 
     # Check if user message is a detail and it's not collected yet
     if user_message.lower() in ["name", "age", "email", "children", "phone number"] and user_message.lower() not in collected_details:
@@ -54,10 +71,10 @@ def chat_nu():
         collected_details = []
 
 
-    # Todo: Guide Visitors through our servive options
-    
+    # Todo: Guide Visitors through our servive options    
 
     return jsonify({'response': response['text']})
+    
 
 
 @app.route('/chat_ru', methods=['POST'])
@@ -69,4 +86,4 @@ def chat_ru():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)
+    app.run(host="0.0.0.0", port=80)
