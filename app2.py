@@ -11,9 +11,11 @@ from langchain_core.prompts.chat import (
 from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import LLMChain
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app)
 
 user_states = {}
 
