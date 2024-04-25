@@ -25,7 +25,7 @@ rand_key = str(uuid.uuid4())
 
 def ask_ai(memory):
     llm = ChatOpenAI(temperature=0, openai_api_key="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", model='gpt-4')
-    sys_prompt = open('ask_user_details.txt', 'r').read().strip()
+    sys_prompt = open('ask_user_details_new.txt', 'r').read().strip()
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt), 
                                                MessagesPlaceholder(variable_name=rand_key), 
                                                HumanMessagePromptTemplate.from_template("{text}")])    
