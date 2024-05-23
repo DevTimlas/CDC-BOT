@@ -73,14 +73,14 @@
             var returningUserBtn = document.getElementById("returning-user-btn");
 
             var isNewUser = true;
-            var initialMessage = "Welcome! Our goal is to support you and your family on your journey, whatever stage that may be. I am an advanced language model bot, which has been carefully guided to work through an engaged support system for our entire site.";
+            // var initialMessage = "Welcome! Our goal is to support you and your family on your journey, whatever stage that may be. I am an advanced language model bot, which has been carefully guided to work through an engaged support system for our entire site.";
             var new_user_msg = "Say Hi to start new conversation";
 
             newUserBtn.addEventListener("click", function() {
                 isNewUser = true;
                 userChoice.classList.add("d-none");
                 chatFormContainer.classList.remove("d-none");
-                appendMessage(initialMessage, "bot");
+                // appendMessage(initialMessage, "bot");
                 appendMessage("😁😁😁😁 " + new_user_msg, "bot");
             });
 
@@ -91,7 +91,7 @@
                 userChoice.classList.add("d-none");
                 chatFormContainer.classList.remove("d-none");
             });
-            
+
 
             chatForm.addEventListener("submit", function(event) {
                 event.preventDefault();
@@ -101,7 +101,13 @@
                 messageInput.value = "";
             });
 
+
              function appendMessage(message, sender) {
+                 console.log(message)
+                 // var messageText = typeof message === 'string' ? message : JSON.stringify(message);
+                if (typeof message === 'object') {
+                        message = formatResponse(message);
+                    }
                 var messageLines = message.split('\n');
                 messageLines.forEach(function(line) {
                     var messageElement = document.createElement("p");
@@ -116,6 +122,17 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
 
+            function formatResponse(response) {
+                var formattedMessage = "";
+                for (var key in response) {
+                    if (response.hasOwnProperty(key)) {
+                        formattedMessage += key.replace('_', ' ') + ": " + response[key] + "\n";
+                    }
+                }
+                return formattedMessage.trim();
+            }
+
+
 
             function sendMessageNU(message) {
                 var xhr = new XMLHttpRequest();
@@ -125,7 +142,8 @@
                     if (xhr.status === 200) {
                         var response = JSON.parse(xhr.responseText);
                         appendMessage(response.response, "bot");
-                    }
+                    }else if (xhr.status === 404) {
+                appendMessage("User not found. Please check the name#tag and try again.", "bot");}
                 };
                 xhr.send(JSON.stringify({ text: message }));
             }
