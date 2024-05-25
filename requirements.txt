@@ -5,3 +5,4 @@ langchain_openai
 langchain
 langchain_openai
 flask_cors
+flask_sqlalchemy
