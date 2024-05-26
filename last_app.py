@@ -46,7 +46,7 @@ rand_key = str(uuid.uuid4())
 
 def ask_ai(memory):
     llm = ChatOpenAI(temperature=0, openai_api_key="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",
-                     max_tokens=3095, model='gpt-4-turbo-2024-04-09')  # -turbo-2024-04-09
+                     model='gpt-4-turbo-2024-04-09')  # -turbo-2024-04-09 max_tokens=3095
 
     sys_prompt = open('conv.txt', 'r').read().strip()
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
@@ -88,17 +88,26 @@ def ask_ai(memory):
 
 
 def clean_input(text):
-    llm = ChatOpenAI(temperature=0, model='gpt-4', openai_api_key="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")
+    llm = ChatOpenAI(temperature=0.2, model='gpt-4',
+                     openai_api_key="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")
     memory = ConversationBufferMemory(memory_key="clean_msg", return_messages=True)
     sys_prompt = """The user says: "{text}", Just incase the text is long and not straightforward,
                     Look for the main information in the user's input and extract it..
                     for example if they say I am 39, it means we're asking for their age, so just return the 39.
                     for example if they say my name is Joe#4343, it means we're asking for their name, so just return the Joe#4343
-                    If they're telling you about the number of children they have, like 0,1,2,3,4,5,6,7,8,9,...
+                    - if a user enters something like tim1234, return this instead tim#1234
+                    - If they're telling you about the number of children they have, like 0,1,2,3,4,5,6,7,8,9,...
                     just find the number in their text and extract and return it..
-                    if it is thier name, make sure you return the name with the tag!
-                    if user message doesn't contain any specific information that you can extract, just return exactly 
-                    what they input"""
+                    - if it is their name, make sure you return the name with the tag!
+                    - if user message doesn't contain any specific information that you can extract, just return exactly 
+                    what they input. 
+                    - Also, a text might look like this:
+                        * Thank you for providing your child's date of birth!
+                         Next, could you please share with me your child's contact number? 
+                         This will help us keep in touch regarding the consultation details. 📞.'*                   
+                        --Therefore, you are required to only extract and return the keyword "child's contact number".
+                      
+                """
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
                                                MessagesPlaceholder(variable_name="clean_msg"),
                                                HumanMessagePromptTemplate.from_template("{text}")])
@@ -173,124 +182,135 @@ def chat_nu():
     user_message = data['text']
 
     # Generate a unique identifier for each user
-    user_id = request.remote_addr + str(request.user_agent)
-    if user_id not in user_states:
-        user_states[user_id] = {
-            'collected_details': {},
-            'collected_details2': {},
-            'memory': ConversationBufferMemory(memory_key=rand_key, return_messages=True),
-            'last_question': None,
-            'details_collected': False,  # Flag to check if details have already been collected
-            'details_collected2': False
-        }
+    try:
+        user_id = request.remote_addr + str(request.user_agent)
+        if user_id not in user_states:
+            user_states[user_id] = {
+                'collected_details': {},
+                'collected_details2': {},
+                'memory': ConversationBufferMemory(memory_key=rand_key, return_messages=True),
+                'last_question': None,
+                'details_collected': False,  # Flag to check if details have already been collected
+                'details_collected2': False
+            }
 
-    # Use the user's state instead of the global state
-    user_state = user_states[user_id]
-    collected_details = user_state['collected_details']
-    collected_details2 = user_state['collected_details2']
-    memory = user_state['memory']
+        # Use the user's state instead of the global state
+        user_state = user_states[user_id]
+        collected_details = user_state['collected_details']
+        collected_details2 = user_state['collected_details2']
+        memory = user_state['memory']
 
-    conversation = ask_ai(memory)
+        conversation = ask_ai(memory)
 
-    # Add user message to the memory
-    memory.chat_memory.add_user_message(user_message)
+        # Add user message to the memory
+        memory.chat_memory.add_user_message(user_message)
 
-    # Define details we want to collect
-    details_to_collect = ["name", "age", "email", "children", "phone number"]
-    details_to_collect2 = ["child's first name", "child's last name", "child's gender", "child's address",
-                           "child's phone number", "child's date of birth", "child's email", 'heard about us']
+        # Define details we want to collect
+        details_to_collect = ["name", "age", "email", "children", "phone number"]
+        details_to_collect2 = ["child's first name", "last name", "gender", "home address",
+                               "contact number", "date of birth", 'heard about us']
 
-    # Check if the last question asked by the bot is about a specific detail
-    last_question = user_state['last_question']
-    print(last_question)
-    if last_question and last_question in details_to_collect:
-        # Extract detail type from the last question
-        detail_type = last_question
-        collected_details[detail_type] = clean_input(user_message)
-        user_state['last_question'] = None  # Reset last_question after capturing the response
+        # Check if the last question asked by the bot is about a specific detail
+        last_question = user_state['last_question']
+        print(last_question)
+        if last_question and last_question in details_to_collect:
+            # Extract detail type from the last question
+            detail_type = last_question
+            collected_details[detail_type] = clean_input(user_message)
+            user_state['last_question'] = None  # Reset last_question after capturing the response
 
-    # collect child info
-    if last_question and last_question in details_to_collect2:
-        # Extract detail type from the last question
-        detail_type = last_question
-        collected_details2[detail_type] = clean_input(user_message)
-        user_state['last_question'] = None  # Reset last_question after capturing the response
+        # collect child info
+        if last_question and last_question in details_to_collect2:
+            # Extract detail type from the last question
+            detail_type = last_question
+            collected_details2[detail_type] = clean_input(user_message)
+            user_state['last_question'] = None  # Reset last_question after capturing the response
 
-    # Get response from the AI
-    response = conversation.invoke({"text": user_message})
-    response_text = response['text']
+        # Get response from the AI
+        response = conversation.invoke({"text": user_message})
+        response_text = response['text']
 
-    # Determine if the bot's response is asking for a specific user detail
-    for detail in details_to_collect:
-        if detail in response_text.lower():
-            user_state['last_question'] = detail
-            if len(collected_details) == 5:
-                break
+        # Determine if the bot's response is asking for a specific user detail
+        for detail in details_to_collect:
+            if detail in response_text.lower():
+                user_state['last_question'] = detail
+                if len(collected_details) == 5:
+                    break
 
-    # Determine if the bot's response is asking for a specific child detail
-    for detail2 in details_to_collect2:
-        if detail2 in response_text.lower():
-            user_state['last_question'] = detail2
-            if len(collected_details2) == 8:
-                break
+        # Determine if the bot's response is asking for a specific child detail
+        for detail2 in details_to_collect2:
+            if detail2 in response_text.lower():
+                user_state['last_question'] = detail2
+                if len(collected_details2) == 8:
+                    break
 
-    # If all details are collected, set the flag and save to the database
-    if all(detail in collected_details for detail in details_to_collect):
-        if not user_state['details_collected']:  # Check if details are already collected
-            user_state['details_collected'] = True  # Set the flag to True
-            print('finished collecting details', collected_details)
+        # If all details are collected, set the flag and save to the database
+        if all(detail in collected_details for detail in details_to_collect):
+            if not user_state['details_collected']:  # Check if details are already collected
+                user_state['details_collected'] = True  # Set the flag to True
+                print('finished collecting details', collected_details)
 
-            # Save the collected details to the database
-            user_detail = UserDetail(
-                # user_id=user_id,
-                name=collected_details.get('name'),
-                age=collected_details.get('age'),
-                email=collected_details.get('email'),
-                children=collected_details.get('children'),
-                phone_number=collected_details.get('phone number')
-            )
-            db.session.add(user_detail)
-            db.session.commit()
+                # Save the collected details to the database
+                user_detail = UserDetail(
+                    # user_id=user_id,
+                    name=collected_details.get('name'),
+                    age=collected_details.get('age'),
+                    email=collected_details.get('email'),
+                    children=collected_details.get('children'),
+                    phone_number=collected_details.get('phone number')
+                )
+                db.session.add(user_detail)
+                db.session.commit()
 
-    print(collected_details)
+        print(collected_details)
 
-    # If all details are collected, set the flag and save to the database
-    if all(detail2 in collected_details2 for detail2 in details_to_collect2):
-        if not user_state['details_collected2']:  # Check if details are already collected
-            user_state['details_collected2'] = True  # Set the flag to True
-            print('finished collecting child details', collected_details2)
-            # Extract values
-            child_fn = collected_details2["child's first name"]
-            child_ln = collected_details2["child's last name"]
-            child_gender = collected_details2["child's gender"]
-            child_addr = collected_details2["child's address"]
-            child_dob = collected_details2["child's date of birth"]
-            email_addr = collected_details2["child's email"]
-            referral_source = collected_details2["heard about us"]
-            phone = collected_details2["child's phone number"]
-            print(child_fn, child_ln, child_gender, child_addr, child_dob, email_addr, phone, referral_source)
+        # If all details are collected, set the flag and save to the database
+        if all(detail2 in collected_details2 for detail2 in details_to_collect2):
+            if not user_state['details_collected2']:  # Check if details are already collected
+                user_state['details_collected2'] = True  # Set the flag to True
+                print('finished collecting child details', collected_details2)
+                # Extract values
+                child_fn = collected_details2["child's first name"]
+                child_ln = collected_details2["last name"]
+                child_gender = collected_details2["gender"]
+                child_addr = collected_details2["home address"]
+                child_dob = collected_details2["date of birth"]
+                email_addr = collected_details["email"] # collected_details2["child's email"]
+                referral_source = collected_details2["heard about us"]
+                phone = collected_details2["contact number"]
+                # print(child_fn, child_ln, child_gender, child_addr, child_dob, email_addr, phone, referral_source)
+                try:
+                    new_pat = create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, child_dob, email_addr,
+                                                 referral_source)
+                    print('success', new_pat)
+                except Exception as e:
+                    print(e)
+                    pass
 
-    print(collected_details2)
+        print(collected_details2)
 
-    # # if good client
-    # # create new patient
-    # if ((("consultation" in user_message) or ("consultation" in response_text)) or
-    #         (('appointment' in user_message) or ('appointment' in response_text))):
-    #     print(True)
+        # # if good client
+        # # create new patient
+        # if ((("consultation" in user_message) or ("consultation" in response_text)) or
+        #         (('appointment' in user_message) or ('appointment' in response_text))):
+        #     print(True)
 
-    # new_patient_data = create_new_patient(child_fn_t, child_ln_t, child_gender_t, child_addr_t, phone_t,
-    #                                       child_dob_t, email_addr_t, referral_source_t)
-    # return jsonify({"response", new_patient_data})
+        # new_patient_data = create_new_patient(child_fn_t, child_ln_t, child_gender_t, child_addr_t, phone_t,
+        #                                       child_dob_t, email_addr_t, referral_source_t)
+        # return jsonify({"response", new_patient_data})
 
-    # if ("consultation" or "appointment" in user_message) or ("consultation" or "appointment" in response_text):
-    #     pass
-    #
-    #     # ask if user would like to book an appointment/consultation:
-    #     # if yes, click on yes button
-    #     # ask info
-    #     # book appt
+        # if ("consultation" or "appointment" in user_message) or ("consultation" or "appointment" in response_text):
+        #     pass
+        #
+        #     # ask if user would like to book an appointment/consultation:
+        #     # if yes, click on yes button
+        #     # ask info
+        #     # book appt
 
-    return jsonify({'response': response_text})
+        return jsonify({'response': response_text})
+    except Exception as e:
+        print(e)
+        pass
 
 
 @app.route('/chat_ru', methods=['POST'])
