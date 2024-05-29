@@ -141,9 +141,12 @@
                       Next, could you please share with me your child's contact number?
                       This will help us keep in touch regarding the consultation details. 📞
 
-                at the end of collecting all details, thank them well, and assure them, their details are forever safe.
-                then Proceed...
-
+                - ** at the end of collecting all details, ask them if they they would like to continue the conversation
+                     with you or that'd be all.
+                     if that'd be all:
+                        thank them well, and assure them, their details are forever safe and end the conversation!
+                     else
+                        proceed to below again, no need to ask for the child's age since you already know, just ask questions ->
 
             - ** Identify if the child of age 4-15 years of age is experiencing any of the following:
                  [Dyslexia, Dyspraxia, Developmental Coordination Disorder, Dyscalculia, ADD, ADHD, ASD]

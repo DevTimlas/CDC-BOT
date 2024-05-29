@@ -95,7 +95,7 @@ def clean_input(text):
                     Look for the main information in the user's input and extract it..
                     for example if they say I am 39, it means we're asking for their age, so just return the 39.
                     for example if they say my name is Joe#4343, it means we're asking for their name, so just return the Joe#4343
-                    - if a user enters something like tim1234, return this instead tim#1234
+                    - if a user enters something like tim1234, return this instead Tim#1234
                     - If they're telling you about the number of children they have, like 0,1,2,3,4,5,6,7,8,9,...
                     just find the number in their text and extract and return it..
                     - if it is their name, make sure you return the name with the tag!
@@ -106,6 +106,11 @@ def clean_input(text):
                          Next, could you please share with me your child's contact number? 
                          This will help us keep in touch regarding the consultation details. 📞.'*                   
                         --Therefore, you are required to only extract and return the keyword "child's contact number".
+                    - if they add a punctuation at the end of their details example 3' or Grey*, 
+                        remove it and return modified one which is 3 or Grey.
+                    - if they're not trying to provide a tag at the end of their name example is Ruth, which is the child's
+                        name, then just return exactly their input which is Ruth, do not add #, unless they're trying to
+                        input it like this ruth1234, then you can add the tag for them which is Ruth#1234.
                       
                 """
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
@@ -245,7 +250,7 @@ def chat_nu():
                     break
 
         # If all details are collected, set the flag and save to the database
-        if all(detail in collected_details for detail in details_to_collect):
+        if all(detail in collected_details for detail in details_to_collect) or len(collected_details) == 4:
             if not user_state['details_collected']:  # Check if details are already collected
                 user_state['details_collected'] = True  # Set the flag to True
                 print('finished collecting details', collected_details)
@@ -275,12 +280,13 @@ def chat_nu():
                 child_gender = collected_details2["gender"]
                 child_addr = collected_details2["home address"]
                 child_dob = collected_details2["date of birth"]
-                email_addr = collected_details["email"] # collected_details2["child's email"]
+                email_addr = collected_details["email"]  # collected_details2["child's email"]
                 referral_source = collected_details2["heard about us"]
                 phone = collected_details2["contact number"]
                 # print(child_fn, child_ln, child_gender, child_addr, child_dob, email_addr, phone, referral_source)
                 try:
-                    new_pat = create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, child_dob, email_addr,
+                    new_pat = create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, child_dob,
+                                                 email_addr,
                                                  referral_source)
                     print('success', new_pat)
                 except Exception as e:
