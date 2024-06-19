@@ -7,3 +7,4 @@ langchain_openai
 flask_cors
 flask_sqlalchemy
 langchain_groq
+psycopg2-binary
