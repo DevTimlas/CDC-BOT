@@ -15,12 +15,16 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import base64
 import requests
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_groq import ChatGroq
 
 app = Flask(__name__)
 CORS(app)
 
 # Configuration for SQLAlchemy and SQLite
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///user_details.db'
+postgres = ("postgresql://user_details_haex_user:3aK54eW8gVFodhyKNcVH5AE59wp2ietV@dpg-cpepfp7sc6pc73a1m9i0-a.oregon"
+            "-postgres.render.com/user_details_haex")
+app.config['SQLALCHEMY_DATABASE_URI'] = postgres  # 'sqlite:///user_details.db'  # postgres
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -41,14 +45,22 @@ with app.app_context():
     db.create_all()
 
 user_states = {}
+user_states1 = {}
 rand_key = str(uuid.uuid4())
 
 
-def ask_ai(memory):
-    llm = ChatOpenAI(temperature=0, openai_api_key="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",
-                     model='gpt-4-turbo-2024-04-09')  # -turbo-2024-04-09 max_tokens=3095
+def ask_ai(memory, sys_prompt_file, model_type, llm_type=0):
+    if llm_type == 0:
+        llm = ChatOpenAI(temperature=0, openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe",
+                         model=model_type)  # -turbo-2024-04-09 max_tokens=3095
+    elif llm_type == 1:
+        llm = ChatGroq(temperature=0, model="llama3-70b-8192",
+                       api_key="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")
+    else:
+        raise Exception("Invalid llm type")
 
-    sys_prompt = open('conv.txt', 'r').read().strip()
+    # sys_prompt = open('conv.txt', 'r').read().strip()
+    sys_prompt = open(sys_prompt_file, 'r').read().strip()
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
                                                MessagesPlaceholder(variable_name=rand_key),
                                                HumanMessagePromptTemplate.from_template("{text}")])
@@ -57,45 +69,33 @@ def ask_ai(memory):
     return conversation
 
 
-# def make_appt_ai(text):
-#     llm = ChatOpenAI(temperature=0, model='gpt-4', openai_api_key="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")
-#     memory = ConversationBufferMemory(memory_key="appt_chat_history", return_messages=True)
-#     sys_prompt = """You're meeting a new person for the first time ever, ask for their {text}.
-#                     KEEP IN MIND THAT THROUGHOUT THE CONVERSATION: You should be able to handle uncertain
-#                      responses and gently steer the conversation back on track or ask clarifying questions also make
-#                      the conversation very less intense for a first interaction. make sure you're not asking a lot of
-#                      questions before gaining trust, that's where you need to engage them first,
-#                      make the conversation flow well and gain their trust, make them feel like they're talking to a human.
-#                      extract and return just the useful info, like the specific name, age, etc.
-#                      just incase the user inputs long text, like:
-#                           - The child's name is Jane, all you need to return is Jane, which is the main answer we want.
-#                           - Another example is: The child would be 17 years of Age soon. then return the 17.
-#                               or calculate and return the date of birth, but you need to input the age in this format;
-#                               2010-01-01
-#                     for the referral source, you can suggest input for them from this list: [Friend/Practitioner/Google]
-#
-#                     after collecting all details, tell them you're glab you're able to help, and they should get the CDC
-#                     brochure from here https://online.anyflip.com/yfsms/gizn/mobile/index.html.
-#                      """
+# def chat_returning_user(memory):
+#     llm = ChatOpenAI(temperature=0, openai_api_key="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",
+#                      model='gpt-4')  # -turbo-2024-04-09 max_tokens=3095
+#     sys_prompt = open('conv_rtn.txt', 'r').read().strip()
 #     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
-#                                                MessagesPlaceholder(variable_name="appt_chat_history"),
+#                                                MessagesPlaceholder(variable_name=rand_key),
 #                                                HumanMessagePromptTemplate.from_template("{text}")])
-#     conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
 #
-#     memory.chat_memory.add_user_message(text)
-#     response = conversation.invoke({"text": text})
-#     return response['text']
+#     conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
+#     return conversation
 
 
-def clean_input(text):
-    llm = ChatOpenAI(temperature=0.2, model='gpt-4',
-                     openai_api_key="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")
+def clean_input(text, llm_type=0):
+    if llm_type == 0:
+        llm = ChatOpenAI(temperature=0.2, model='gpt-4',
+                         openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
+    elif llm_type == 1:
+        llm = ChatGroq(temperature=0, model="llama3-70b-8192",
+                       api_key="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")
+    else:
+        raise Exception("Invalid llm type for cleaning text...")
     memory = ConversationBufferMemory(memory_key="clean_msg", return_messages=True)
     sys_prompt = """The user says: "{text}", Just incase the text is long and not straightforward,
                     Look for the main information in the user's input and extract it..
                     for example if they say I am 39, it means we're asking for their age, so just return the 39.
                     for example if they say my name is Joe#4343, it means we're asking for their name, so just return the Joe#4343
-                    - if a user enters something like tim1234, return this instead Tim#1234
+                    - if a user enters something like tim1234, return this instead Tim#1234, make sure user's name always starts with capital letters
                     - If they're telling you about the number of children they have, like 0,1,2,3,4,5,6,7,8,9,...
                     just find the number in their text and extract and return it..
                     - if it is their name, make sure you return the name with the tag!
@@ -111,7 +111,8 @@ def clean_input(text):
                     - if they're not trying to provide a tag at the end of their name example is Ruth, which is the child's
                         name, then just return exactly their input which is Ruth, do not add #, unless they're trying to
                         input it like this ruth1234, then you can add the tag for them which is Ruth#1234.
-                      
+                    - if they're inputting their email as in this pattern; xxx@yyy.zzz, you should return it exactly the way they input it.
+
                 """
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
                                                MessagesPlaceholder(variable_name="clean_msg"),
@@ -178,7 +179,7 @@ def create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, chil
 
 @app.route('/')
 def index():
-    return render_template('index3.html')
+    return render_template('index8.html')
 
 
 @app.route('/chat_nu', methods=['POST'])
@@ -205,7 +206,7 @@ def chat_nu():
         collected_details2 = user_state['collected_details2']
         memory = user_state['memory']
 
-        conversation = ask_ai(memory)
+        conversation = ask_ai(memory, 'conv.txt', 'gpt-4-turbo-2024-04-09', llm_type=0)
 
         # Add user message to the memory
         memory.chat_memory.add_user_message(user_message)
@@ -221,14 +222,14 @@ def chat_nu():
         if last_question and last_question in details_to_collect:
             # Extract detail type from the last question
             detail_type = last_question
-            collected_details[detail_type] = clean_input(user_message)
+            collected_details[detail_type] = clean_input(user_message, llm_type=0)
             user_state['last_question'] = None  # Reset last_question after capturing the response
 
         # collect child info
         if last_question and last_question in details_to_collect2:
             # Extract detail type from the last question
             detail_type = last_question
-            collected_details2[detail_type] = clean_input(user_message)
+            collected_details2[detail_type] = clean_input(user_message, llm_type=0)
             user_state['last_question'] = None  # Reset last_question after capturing the response
 
         # Get response from the AI
@@ -250,7 +251,7 @@ def chat_nu():
                     break
 
         # If all details are collected, set the flag and save to the database
-        if all(detail in collected_details for detail in details_to_collect) or len(collected_details) == 4:
+        if all(detail in collected_details for detail in details_to_collect) or len(collected_details) == 5:
             if not user_state['details_collected']:  # Check if details are already collected
                 user_state['details_collected'] = True  # Set the flag to True
                 print('finished collecting details', collected_details)
@@ -321,31 +322,105 @@ def chat_nu():
 
 @app.route('/chat_ru', methods=['POST'])
 def chat_ru():
-    data = request.get_json()
-    user_message = data['text']
+    try:
+        data = request.get_json()
+        user_message = data['text']
 
-    # Extract the name (assuming the user input is in the format like 'Tim#1038')
-    user_name = user_message.strip()
+        # Extract the name (assuming the user input is in the format like 'Tim#1038')
+        user_name = user_message.strip()
 
-    # Query the database for the user with the provided name
-    user_detail = UserDetail.query.filter_by(name=user_name).first()
+        # Query the database for the user with the provided name
+        user_detail = UserDetail.query.filter_by(name=user_name).first()
 
-    if user_detail:
-        # If the user exists, return their details
-        user_data = {
-            # 'id': user_detail.id,
-            # 'user_id': user_detail.user_id,
-            'name': user_detail.name,
-            'age': user_detail.age,
-            'email': user_detail.email,
-            'children': user_detail.children,
-            'phone_number': user_detail.phone_number
-        }
-        print(user_data)
-        return jsonify({'response': user_data})
-    else:
-        # If the user does not exist, return an error message
-        return jsonify({'response': f'User {user_name} not found'}), 404
+        init_message = " "
+        print(user_message)
+
+        if user_detail:
+            # If the user exists, return their details
+            user_data = {
+                # 'id': user_detail.id,
+                # 'user_id': user_detail.user_id,
+                'name': user_detail.name,
+                'age': user_detail.age,
+                'email': user_detail.email,
+                'children': user_detail.children,
+                'phone_number': user_detail.phone_number
+            }
+
+            print(user_data)
+
+            init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
+        else:
+            if user_detail is None:
+                init_message = (f"user message {user_name} does not exist, ignore the rest of the message, and return "
+                                f"just that")
+
+        print(init_message)
+        sys_prmt = \
+            """
+                - **Objective:** You're a CDC bot, you already talked to users and collected all their 
+                information, Let returning users know that you're CDC BOT Assistant named Amara, you're available 
+                to Support users and their families on their journey, providing information and tailored 
+                assistance, based on their info.. ** don't ask them to confirm their info, unless they input 
+                their name with their name and if it's found! ** if you get any greetings message like Hi, Hey, 
+                Hola.. still let them know they need to input their name with their tag so you can check if you 
+                have their info ** Use as much emoji as you can, just to make sure, you're friendly and polite 
+                enough to them, as a returning user ** if their phone number is empty, just let them know it's 
+                empty, don't come up with random numbers!! ** Never tell them to Please wait a moment to check if 
+                you have their, just directly tell them if you have it or not. ** if user details is not found, 
+                don't make up anything and just return to them that it's not found!!
+
+                - Here's the Users Details "user_data", if their details is correct, Greet them properly!, and list their 
+                info for them to crosscheck: Hey [their info details, such as age, children, phone number], so great to 
+                see you again (insert name). How's your health been since I saw you last? Include MAYBE AN EMOJI to make 
+                it lively. wait until you receive another response from them before proceeding to ask questions, 
+                they might have something to say, so don't be too straightforward with your questions, and make your 
+                questions as detailed as possible.
+
+                - Do not ever repeat the output response again... Just focus on Proceeding, make sure you're able to 
+                handle any form of convo!
+
+                 - Then Proceed to ask if they want to schedule another appointment of type 2
+
+                     if Users in inputs Yes, tell them the feature is coming soon,
+
+                     if users inputs No, ask them... how you can help them? Just do not return their details again, 
+                     after the first time..
+
+            """
+
+        # Generate a unique identifier for each user
+        full_msg = init_message + "\n" + sys_prmt
+        # del init_message
+        user_id = request.remote_addr + str(request.user_agent)
+        if user_id not in user_states1:
+            user_states1[user_id] = {
+                'memory': ConversationBufferMemory(memory_key=rand_key, return_messages=True),
+            }
+
+        # Use the user's state instead of the global state
+        user_state = user_states1[user_id]
+        memory = user_state['memory']
+
+        prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(full_msg),
+                                                   MessagesPlaceholder(variable_name=rand_key),
+                                                   HumanMessagePromptTemplate.from_template("{text}")])
+        llm = ChatOpenAI(temperature=0.2, model='gpt-4',
+                         openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
+
+        conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
+
+        # Add user message to the memory
+        memory.chat_memory.add_user_message(str(user_message))
+
+        response = conversation.invoke({"text": str(user_message)})
+        response_text = response['text']
+
+        return jsonify({'response': response_text})
+
+    except Exception as e:
+        print(e)
+        return jsonify({'response': str(e)})
 
 
 if __name__ == '__main__':

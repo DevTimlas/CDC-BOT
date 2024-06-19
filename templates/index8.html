@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Interface</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+            width: 100%;
+            max-width: 600px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        .chat-header {
+            padding: 15px;
+            background: #007bff;
+            color: #fff;
+            border-radius: 8px 8px 0 0;
+            text-align: center;
+        }
+        .chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-footer {
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 0 0 8px 8px;
+            position: relative;
+        }
+        .chat-message {
+            margin-bottom: 10px;
+            display: flex;
+            animation: fadeIn 0.5s;
+        }
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+        .chat-message.bot {
+            justify-content: flex-start;
+        }
+        .chat-bubble {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 8px;
+            background: #007bff;
+            color: #fff;
+        }
+        .chat-message.user .chat-bubble {
+            background: #007bff;
+            color: #fff;
+        }
+        .chat-message.bot .chat-bubble {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .input-group {
+            position: relative;
+        }
+        .input-container {
+            position: relative;
+            width: 100%;
+        }
+        textarea {
+            resize: none;
+            overflow: auto;
+            width: 100%;
+            padding-right: 40px; /* Ensure space for the send icon */
+            box-sizing: border-box;
+        }
+        .send-icon {
+            position: absolute;
+            right: 10px;
+            bottom: 10px; /* Position the icon at the bottom */
+            cursor: pointer;
+            color: #007bff;
+        }
+        .option-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container" role="main" aria-labelledby="chat-header">
+        <div class="chat-header" id="chat-header">
+            Chat Interface
+        </div>
+        <div class="chat-body" id="messages-container" role="log" aria-live="polite">
+            <!-- Chat messages will be displayed here -->
+        </div>
+        <div class="chat-footer" id="user-choice">
+            <p>Are you a new user or returning user?</p>
+            <button class="btn btn-primary" id="new-user-btn">New User</button>
+            <button class="btn btn-secondary" id="returning-user-btn">Returning User</button>
+        </div>
+        <div class="chat-footer d-none" id="chat-form-container">
+            <form id="chat-form" class="w-100" aria-label="Chat input form">
+                <div class="input-container">
+                    <textarea id="message" class="form-control" placeholder="Type a message..." rows="1" aria-label="Type your message here"></textarea>
+                    <i class="fas fa-paper-plane send-icon" role="button" aria-label="Send message"></i>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var messagesContainer = document.getElementById("messages-container");
+            var chatForm = document.getElementById("chat-form");
+            var messageInput = document.getElementById("message");
+            var userChoice = document.getElementById("user-choice");
+            var chatFormContainer = document.getElementById("chat-form-container");
+            var newUserBtn = document.getElementById("new-user-btn");
+            var returningUserBtn = document.getElementById("returning-user-btn");
+            var sendIcon = document.querySelector(".send-icon");
+
+            // Initialize user type
+            var isNewUser = null;
+
+            // Check if user choice is already stored
+            var userType = sessionStorage.getItem("userType");
+            if (userType) {
+                userChoice.classList.add("d-none");
+                chatFormContainer.classList.remove("d-none");
+                if (userType === "new") {
+                    isNewUser = true;
+                    appendMessage("Say Hi to start a new conversation", "bot");
+                } else {
+                    isNewUser = false;
+                    appendMessage("Welcome back! Please input your name#tag to look up your details.", "bot");
+                }
+            }
+
+            newUserBtn.addEventListener("click", function() {
+                isNewUser = true;
+                sessionStorage.setItem("userType", "new");
+                userChoice.classList.add("d-none");
+                chatFormContainer.classList.remove("d-none");
+                appendMessage("Say Hi to start a new conversation", "bot");
+            });
+
+            returningUserBtn.addEventListener("click", function() {
+                isNewUser = false;
+                sessionStorage.setItem("userType", "returning");
+                userChoice.classList.add("d-none");
+                chatFormContainer.classList.remove("d-none");
+                appendMessage("Welcome back! Please input your name#tag to look up your details.", "bot");
+            });
+
+            chatForm.addEventListener("submit", function(event) {
+                event.preventDefault();
+                var message = messageInput.value.trim();
+                if (message) {
+                    appendMessage(message, "user");
+                    sendMessage(message);
+                    messageInput.value = "";
+                    messageInput.rows = 1;
+                }
+            });
+
+            messageInput.addEventListener("input", function() {
+                messageInput.rows = Math.min(5, Math.max(1, messageInput.value.split("\n").length));
+            });
+
+            messageInput.addEventListener("keydown", function(event) {
+                if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                }
+            });
+
+            sendIcon.addEventListener("click", function() {
+                chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+            });
+
+            window.addEventListener("beforeunload", function() {
+                sessionStorage.removeItem("userType");
+            });
+
+            function appendMessage(message, sender) {
+                var messageElement = document.createElement("div");
+                messageElement.classList.add("chat-message", sender);
+
+                var bubbleElement = document.createElement("div");
+                bubbleElement.classList.add("chat-bubble");
+                bubbleElement.textContent = message;
+
+                messageElement.appendChild(bubbleElement);
+                messagesContainer.appendChild(messageElement);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                // Check if the bot message contains options
+                message = message.toLowerCase();
+                if (sender === "bot" && message.includes("what brings you")) {
+                    var splitIndex = message.indexOf("Are you seeking");
+                    bubbleElement.textContent = message.substring(0, splitIndex).trim();
+                    appendOptions(["General information on CDC UK", "Immediate support", "Help with a specific issue", "Exploring support or therapy options"]);
+                    appendMessage('Please choose one option from the above that best describes your need');
+                }
+            }
+
+            function appendOptions(options) {
+                var optionsContainer = document.createElement("div");
+                optionsContainer.classList.add("option-buttons");
+
+                options.forEach(function(option) {
+                    var button = document.createElement("button");
+                    button.classList.add("btn", "btn-outline-primary");
+                    button.textContent = option;
+                    button.addEventListener("click", function() {
+                        appendMessage(option, "user");
+                        sendMessage(option);
+                        optionsContainer.remove();
+                    });
+                    optionsContainer.appendChild(button);
+                });
+
+                messagesContainer.appendChild(optionsContainer);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            function sendMessage(message) {
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", isNewUser ? "/chat_nu" : "/chat_ru");
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        appendMessage(response.response, "bot");
+                    } else if (xhr.status === 404) {
+                        appendMessage("User not found. Please check the name#tag and try again.", "bot");
+                    } else {
+                        appendMessage("An error occurred. Please try again.", "bot");
+                    }
+                };
+                xhr.onerror = function() {
+                    appendMessage("Network error. Please check your connection and try again.", "bot");
+                };
+                xhr.send(JSON.stringify({ text: message }));
+            }
+        });
+    </script>
+</body>
+</html>
