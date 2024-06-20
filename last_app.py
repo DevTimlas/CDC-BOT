@@ -24,7 +24,7 @@ CORS(app)
 # Configuration for SQLAlchemy and SQLite
 postgres = ("postgresql://user_details_haex_user:3aK54eW8gVFodhyKNcVH5AE59wp2ietV@dpg-cpepfp7sc6pc73a1m9i0-a.oregon"
             "-postgres.render.com/user_details_haex")
-app.config['SQLALCHEMY_DATABASE_URI'] = postgres  # 'sqlite:///user_details.db'  # postgres
+app.config['SQLALCHEMY_DATABASE_URI'] = postgres # 'sqlite:///user_details.db'  # postgres
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -91,29 +91,21 @@ def clean_input(text, llm_type=0):
     else:
         raise Exception("Invalid llm type for cleaning text...")
     memory = ConversationBufferMemory(memory_key="clean_msg", return_messages=True)
-    sys_prompt = """The user says: "{text}", Just incase the text is long and not straightforward,
-                    Look for the main information in the user's input and extract it..
-                    for example if they say I am 39, it means we're asking for their age, so just return the 39.
-                    for example if they say my name is Joe#4343, it means we're asking for their name, so just return the Joe#4343
-                    - if a user enters something like tim1234, return this instead Tim#1234, make sure user's name always starts with capital letters
-                    - If they're telling you about the number of children they have, like 0,1,2,3,4,5,6,7,8,9,...
-                    just find the number in their text and extract and return it..
-                    - if it is their name, make sure you return the name with the tag!
-                    - if user message doesn't contain any specific information that you can extract, just return exactly 
-                    what they input. 
-                    - Also, a text might look like this:
-                        * Thank you for providing your child's date of birth!
-                         Next, could you please share with me your child's contact number? 
-                         This will help us keep in touch regarding the consultation details. 📞.'*                   
-                        --Therefore, you are required to only extract and return the keyword "child's contact number".
-                    - if they add a punctuation at the end of their details example 3' or Grey*, 
-                        remove it and return modified one which is 3 or Grey.
-                    - if they're not trying to provide a tag at the end of their name example is Ruth, which is the child's
-                        name, then just return exactly their input which is Ruth, do not add #, unless they're trying to
-                        input it like this ruth1234, then you can add the tag for them which is Ruth#1234.
-                    - if they're inputting their email as in this pattern; xxx@yyy.zzz, you should return it exactly the way they input it.
-
-                """
+    sys_prompt = """The user says: "{text}", Just incase the text is long and not straightforward, Look for the main 
+    information in the user's input and extract it.. for example if they say I am 39, it means we're asking for their 
+    age, so just return the 39. for example if they say my name is Joe, it means we're asking for their name, 
+    so just return the Joe - if a user enters something like tim, return this instead Tim, make sure user's name 
+    always starts with capital letters - If they're telling you about the number of children they have, like 0,1,2,3,
+    4,5,6,7,8,9,... just find the number in their text and extract and return it.. - if it is their name, 
+    make sure you return the exact name  - if user message doesn't contain any specific information that you 
+    can extract, just return exactly what they input. - Also, a text might look like this: * Thank you for providing 
+    your child's date of birth! Next, could you please share with me your child's contact number? This will help us 
+    keep in touch regarding the consultation details. 📞.'* --Therefore, you are required to only extract and return 
+    the keyword "child's contact number". - if they add a punctuation at the end of their details example 3' or 
+    John*, remove it and return modified one which is 3 or John. 
+    - if they're inputting their email as in this pattern; xxx@yyy.zzz, you should return it exactly the way they input it.
+                      
+    """
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
                                                MessagesPlaceholder(variable_name="clean_msg"),
                                                HumanMessagePromptTemplate.from_template("{text}")])
@@ -330,7 +322,7 @@ def chat_ru():
         user_name = user_message.strip()
 
         # Query the database for the user with the provided name
-        user_detail = UserDetail.query.filter_by(name=user_name).first()
+        user_detail = UserDetail.query.filter_by(email=user_name).first()
 
         init_message = " "
         print(user_message)
@@ -350,25 +342,23 @@ def chat_ru():
             print(user_data)
 
             init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
-        else:
-            if user_detail is None:
-                init_message = (f"user message {user_name} does not exist, ignore the rest of the message, and return "
-                                f"just that")
+        # else:
+        #     if user_detail is None:
+        #         init_message = (f"user message {user_name} does not exist, ignore the rest of the message, and return "
+        #                         f"just that")
 
         print(init_message)
-        sys_prmt = \
-            """
-                - **Objective:** You're a CDC bot, you already talked to users and collected all their 
-                information, Let returning users know that you're CDC BOT Assistant named Amara, you're available 
-                to Support users and their families on their journey, providing information and tailored 
-                assistance, based on their info.. ** don't ask them to confirm their info, unless they input 
-                their name with their name and if it's found! ** if you get any greetings message like Hi, Hey, 
-                Hola.. still let them know they need to input their name with their tag so you can check if you 
-                have their info ** Use as much emoji as you can, just to make sure, you're friendly and polite 
-                enough to them, as a returning user ** if their phone number is empty, just let them know it's 
-                empty, don't come up with random numbers!! ** Never tell them to Please wait a moment to check if 
-                you have their, just directly tell them if you have it or not. ** if user details is not found, 
-                don't make up anything and just return to them that it's not found!!
+        sys_prmt =\
+            """- **Objective:** You're a CDC bot, you already talked to users and collected all their information, 
+            Let returning users know that you're CDC BOT Assistant named Amara, you're available to Support users and 
+            their families on their journey, providing information and tailored assistance, based on their info.. ** 
+            don't ask them to confirm their info, unless they input their email and if it's found! ** if you get any 
+            greetings message like Hi, Hey, Hola.. still let them know they need to input their email address so you 
+            can check if you have their info ** Use as much emoji as you can, just to make sure, you're friendly and 
+            polite enough to them, as a returning user ** if their phone number is empty, just let them know it's 
+            empty, don't come up with random numbers!! ** Never tell them to Please wait a moment to check if you 
+            have their details or anything similar, just directly tell them if you have it or not. ** if user details 
+            is not found, don't make up anything and just return to them that it's not found!!
 
                 - Here's the Users Details "user_data", if their details is correct, Greet them properly!, and list their 
                 info for them to crosscheck: Hey [their info details, such as age, children, phone number], so great to 
@@ -376,14 +366,14 @@ def chat_ru():
                 it lively. wait until you receive another response from them before proceeding to ask questions, 
                 they might have something to say, so don't be too straightforward with your questions, and make your 
                 questions as detailed as possible.
-
+    
                 - Do not ever repeat the output response again... Just focus on Proceeding, make sure you're able to 
                 handle any form of convo!
-
+    
                  - Then Proceed to ask if they want to schedule another appointment of type 2
-
+    
                      if Users in inputs Yes, tell them the feature is coming soon,
-
+    
                      if users inputs No, ask them... how you can help them? Just do not return their details again, 
                      after the first time..
 
