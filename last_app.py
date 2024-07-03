@@ -24,7 +24,10 @@ CORS(app)
 # Configuration for SQLAlchemy and SQLite
 postgres = ("postgresql://user_details_haex_user:3aK54eW8gVFodhyKNcVH5AE59wp2ietV@dpg-cpepfp7sc6pc73a1m9i0-a.oregon"
             "-postgres.render.com/user_details_haex")
-app.config['SQLALCHEMY_DATABASE_URI'] = postgres  # 'sqlite:///user_details.db'
+
+pg2 = ("postgresql://avnadmin:AVNS_UfEmJtUzKREg8ZI8OSV@pg-5fa3219-timcodedata-131f.c.aivencloud.com:13352/defaultdb"
+       "?sslmode=require")
+app.config['SQLALCHEMY_DATABASE_URI'] = pg2  # 'sqlite:///user_details.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
