@@ -86,7 +86,7 @@ def ask_ai(memory, sys_prompt_file, model_type, llm_type=0):
 
 def clean_input(text, llm_type=0):
     if llm_type == 0:
-        llm = ChatOpenAI(temperature=0.2, model='gpt-4',
+        llm = ChatOpenAI(model='gpt-4-turbo-2024-04-09', # gpt-4o-2024-05-13
                          openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
     elif llm_type == 1:
         llm = ChatGroq(temperature=0, model="llama3-70b-8192",
@@ -169,7 +169,7 @@ def create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, chil
     print(response)
 
     data = response.json()
-    return (data)
+    return data
 
 
 @app.route('/')
@@ -201,7 +201,7 @@ def chat_nu():
         collected_details2 = user_state['collected_details2']
         memory = user_state['memory']
 
-        conversation = ask_ai(memory, 'conv.txt', 'gpt-4-turbo-2024-04-09', llm_type=0)
+        conversation = ask_ai(memory, 'conv.txt', 'gpt-4o-2024-05-13', llm_type=0) # gpt-4o-2024-05-13 # gpt-4-turbo-2024-04-09
 
         # Add a user message to the memory
         memory.chat_memory.add_user_message(user_message)
