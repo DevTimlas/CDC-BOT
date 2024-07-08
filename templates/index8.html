@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot Interface</title>
+    <title>CDC BOT</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
@@ -150,7 +150,7 @@
                     appendMessage("Say Hi to start a new conversation", "bot");
                 } else {
                     isNewUser = false;
-                    appendMessage("Welcome back! Please input your name#tag to look up your details.", "bot");
+                    appendMessage("Welcome back! Please input your email address to look up your details.", "bot");
                 }
             }
 
@@ -214,11 +214,12 @@
 
                 // Check if the bot message contains options
                 message = message.toLowerCase();
-                if (sender === "bot" && message.includes("what brings you")) {
-                    var splitIndex = message.indexOf("Are you seeking");
+                // if (sender === "bot" && message.includes("how can I assist you")) {
+                if (sender === "bot" && (message.includes("what brings you") || message.includes("General information on CDC U.K"))) {
+                    var splitIndex = message.indexOf("Please choose one of the following options");
                     bubbleElement.textContent = message.substring(0, splitIndex).trim();
                     appendOptions(["General information on CDC UK", "Immediate support", "Help with a specific issue", "Exploring support or therapy options"]);
-                    appendMessage('Please choose one option from the above that best describes your need');
+                    appendMessage('Please choose one option from the above that best describes your need', 'bot');
                 }
             }
 

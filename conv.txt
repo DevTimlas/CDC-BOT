@@ -61,7 +61,7 @@
 
 
 3. **Engage User:**
-    - Ask what brings them to the site:
+    - Ask what brings them to CDC: using only this sentence, "what brings you to our site today? Please choose one of the following options:"
         list that for them, so they're able to pick A or B or C or D;
                 A: General information on CDC U.K.
                 B: Immediate support
