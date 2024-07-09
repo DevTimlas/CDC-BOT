@@ -17,6 +17,7 @@ import base64
 import requests
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -41,6 +42,7 @@ class UserDetail(db.Model):
     email = db.Column(db.String(100))
     children = db.Column(db.String(10))
     phone_number = db.Column(db.String(20))
+    npid = db.Column(db.String(100))
 
 
 # Ensure tables are created within the application context
@@ -86,7 +88,7 @@ def ask_ai(memory, sys_prompt_file, model_type, llm_type=0):
 
 def clean_input(text, llm_type=0):
     if llm_type == 0:
-        llm = ChatOpenAI(model='gpt-4-turbo-2024-04-09', # gpt-4o-2024-05-13
+        llm = ChatOpenAI(model='gpt-4-turbo-2024-04-09',  # gpt-4o-2024-05-13
                          openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
     elif llm_type == 1:
         llm = ChatGroq(temperature=0, model="llama3-70b-8192",
@@ -172,6 +174,36 @@ def create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, chil
     return data
 
 
+def create_new_appt(patient_id):
+    appt_url = "https://api.au1.cliniko.com/v1/individual_appointments"
+
+    start_date = datetime.today().strftime('%Y-%m-%d')
+    headers = {
+        'Authorization': f'Basic {encoded_credentials}',
+        'Content-Type': 'application/json',
+    }
+    appt_payload = {
+        "appointment_type_id": "60586",
+        "business_id": "15310",
+        # "ends_at": "2019-08-24T14:15:22Z",
+        # "notes": "string",
+        "patient_id": patient_id,  # '1427472976856483735',  # f"{new_patient_data['id']}",
+        # "patient_case_id": "1",
+        "practitioner_id": '22152',
+        "starts_at": start_date,
+        # "repeat_rule": {
+        #   "number_of_repeats": 0,
+        #   "repeat_type": "Daily",
+        #   "repeating_interval": 0
+        # }
+    }
+
+    appt_response = requests.post(appt_url, json=appt_payload, headers=headers)
+
+    appt_data = appt_response.json()
+    return appt_data
+
+
 @app.route('/')
 def index():
     return render_template('index8.html')
@@ -201,7 +233,8 @@ def chat_nu():
         collected_details2 = user_state['collected_details2']
         memory = user_state['memory']
 
-        conversation = ask_ai(memory, 'conv.txt', 'gpt-4o-2024-05-13', llm_type=0) # gpt-4o-2024-05-13 # gpt-4-turbo-2024-04-09
+        conversation = ask_ai(memory, 'conv.txt', 'gpt-4o-2024-05-13',
+                              llm_type=0)  # gpt-4o-2024-05-13 # gpt-4-turbo-2024-04-09
 
         # Add a user message to the memory
         memory.chat_memory.add_user_message(user_message)
@@ -274,19 +307,35 @@ def chat_nu():
                 child_fn = collected_details2["child's first name"]
                 child_ln = collected_details2["last name"]
                 child_gender = collected_details2["gender"]
-                # child_addr = collected_details2["home address"]
+                child_addr = collected_details2["home address"]
                 child_dob = collected_details2["date of birth"]
                 email_addr = collected_details["email"]  # collected_details2["child's email"]
                 referral_source = collected_details2["heard about us"]
                 phone = collected_details["phone number"]
                 # print(child_fn, child_ln, child_gender, child_addr, child_dob, email_addr, phone, referral_source)
                 try:
-                    new_pat = create_new_patient(child_fn, child_ln, phone, child_dob, child_gender, email_addr,
-                                                 referral_source)
-                    print('success', new_pat)
+                    # (child_fn, child_ln, child_gender, child_addr, phone, child_dob, email_addr, referral_source
+                    # new_pat = create_new_patient(child_fn=child_fn, child_ln=child_ln, phone=phone, child_dob=child_dob,
+                    #                              child_gender=child_gender, child_addr=child_addr,
+                    #                              referral_source=referral_source, email_addr=email_addr)
+                    print('sending collected details: ', child_fn, child_ln, child_gender, child_addr, child_dob, email_addr, referral_source, phone)
+                    new_pat = create_new_patient(child_fn, child_ln, child_gender, child_addr, phone,
+                                                 child_dob, email_addr, referral_source)
+
+                    npid = new_pat['id']
+                    new_appt = create_new_appt(npid)
+                    self_lnk = new_appt['links']['self']
+
+                    # Update the UserDetail with the new patient ID (npid)
+                    user_detail = UserDetail.query.filter_by(email=email_addr).first()
+                    if user_detail:
+                        user_detail.npid = npid
+                        db.session.commit()
+                        print(f'Updated user {user_detail.name} with new patient ID {npid} and appt link {self_lnk}')
                 except Exception as e:
                     print(e)
-                    pass
+                    import traceback
+                    traceback.print_exc()
 
         print(collected_details2)
 
