@@ -17,7 +17,7 @@ import base64
 import requests
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
@@ -174,6 +174,46 @@ def create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, chil
     return data
 
 
+def create_self_patient(name, age, phone, email_addr, full_birthdate, house_address, last_name):
+    url = "https://api.au1.cliniko.com/v1/patients"
+    name = str(name)
+    age = str(age)
+    phone = str(phone)
+    email_addr = str(email_addr)
+    dob = str(age)
+
+    payload = {
+        "accepted_privacy_policy": True,
+        "accepted_email_marketing": True,
+        "address_1": f"{house_address}",
+        "country": "United Kingdom",
+        "date_of_birth": f"{full_birthdate}",
+        "email": f"{email_addr}",
+        "first_name": f"{name}",
+        "last_name": f"{last_name}",
+        "receives_confirmation_emails": True,
+        # "time_zone": "United Kingdom",
+        "unsubscribe_sms_marketing": True,
+        "patient_phone_numbers": [
+            {
+                "phone_type": "Mobile",
+                "number": f"{phone}"
+            }
+        ]
+    }
+
+    headers = {
+        'Authorization': f'Basic {encoded_credentials}',
+        'Content-Type': 'application/json',
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    print(response)
+
+    data = response.json()
+    return data
+
+
 def create_new_appt(patient_id):
     appt_url = "https://api.au1.cliniko.com/v1/individual_appointments"
 
@@ -206,7 +246,7 @@ def create_new_appt(patient_id):
 
 @app.route('/')
 def index():
-    return render_template('index8.html')
+    return render_template('index_last.html')
 
 
 @app.route('/chat_nu', methods=['POST'])
@@ -221,15 +261,18 @@ def chat_nu():
             user_states[user_id] = {
                 'collected_details': {},
                 'collected_details2': {},
+                'collected_details3': {},
                 'memory': ConversationBufferMemory(memory_key=rand_key, return_messages=True),
                 'last_question': None,
                 'details_collected': False,  # Flag to check if details have already been collected
-                'details_collected2': False
+                'details_collected2': False,
+                'details_collected3': False
             }
 
         # Use the user's state instead of the global state
         user_state = user_states[user_id]
         collected_details = user_state['collected_details']
+        collected_details3 = user_state['collected_details3']
         collected_details2 = user_state['collected_details2']
         memory = user_state['memory']
 
@@ -241,6 +284,7 @@ def chat_nu():
 
         # Define details we want to collect
         details_to_collect = ["name", "age", "email", "children", "phone number"]
+        details_to_collect3 = ['birth date', 'home address', 'surname']
         details_to_collect2 = ["child's first name", "last name", "gender", "home address",
                                "date of birth", 'heard about us']
 
@@ -260,6 +304,13 @@ def chat_nu():
             collected_details2[detail_type] = clean_input(user_message, llm_type=0)
             user_state['last_question'] = None  # Reset last_question after capturing the response
 
+        # collect add info
+        if last_question and last_question in details_to_collect3:
+            # Extract detail type from the last question
+            detail_type = last_question
+            collected_details3[detail_type] = clean_input(user_message, llm_type=0)
+            user_state['last_question'] = None  # Reset last_question after capturing the response
+
         # Get response from the AI
         response = conversation.invoke({"text": user_message})
         response_text = response['text']
@@ -276,6 +327,12 @@ def chat_nu():
             if detail2 in response_text.lower():
                 user_state['last_question'] = detail2
                 if len(collected_details2) == 6:
+                    break
+        # Determine if the bot's response is asking for a additional specific user detail
+        for detail3 in details_to_collect3:
+            if detail3 in response_text.lower():
+                user_state['last_question'] = detail3
+                if len(collected_details3) == 3:
                     break
 
         # If all details are collected, set the flag and save to the database
@@ -296,7 +353,7 @@ def chat_nu():
                 db.session.add(user_detail)
                 db.session.commit()
 
-        print(collected_details)
+        print('col details 1', collected_details)
 
         # If all details are collected, set the flag and save to the database
         if all(detail2 in collected_details2 for detail2 in details_to_collect2):
@@ -315,10 +372,8 @@ def chat_nu():
                 # print(child_fn, child_ln, child_gender, child_addr, child_dob, email_addr, phone, referral_source)
                 try:
                     # (child_fn, child_ln, child_gender, child_addr, phone, child_dob, email_addr, referral_source
-                    # new_pat = create_new_patient(child_fn=child_fn, child_ln=child_ln, phone=phone, child_dob=child_dob,
-                    #                              child_gender=child_gender, child_addr=child_addr,
-                    #                              referral_source=referral_source, email_addr=email_addr)
-                    print('sending collected details: ', child_fn, child_ln, child_gender, child_addr, child_dob, email_addr, referral_source, phone)
+                    print('sending collected details: ', child_fn, child_ln, child_gender, child_addr, child_dob,
+                          email_addr, referral_source, phone)
                     new_pat = create_new_patient(child_fn, child_ln, child_gender, child_addr, phone,
                                                  child_dob, email_addr, referral_source)
 
@@ -337,7 +392,40 @@ def chat_nu():
                     import traceback
                     traceback.print_exc()
 
-        print(collected_details2)
+        print('col details 2', collected_details2)
+
+        # If all details are collected, set the flag and save to the database
+        if all(detail in collected_details3 for detail in details_to_collect3) or len(collected_details3) == 3:
+            if not user_state['details_collected3']:  # Check if details are already collected
+                user_state['details_collected3'] = True  # Set the flag to True
+                print('finished collecting additional details', collected_details3)
+
+                try:
+                    # (name, age, phone, email_addr, full_birthdate, house_address, last_name):
+                    new_pat = create_self_patient(name=collected_details['name'],
+                                                  age=collected_details['age'],
+                                                  phone=collected_details['phone number'],
+                                                  email_addr=collected_details['email'],
+                                                  full_birthdate=collected_details3['birth date'],
+                                                  house_address=collected_details3['home address'],
+                                                  last_name=collected_details3['surname'])
+
+                    npid = new_pat['id']
+                    new_appt = create_new_appt(npid)
+                    self_lnk = new_appt['links']['self']
+                    # Update the UserDetail with the new patient ID (npid)
+                    user_detail = UserDetail.query.filter_by(email=collected_details['email']).first()
+                    if user_detail:
+                        user_detail.npid = npid
+                        db.session.commit()
+                        print(f'Updated user {user_detail.name} with new patient ID {npid} and appt link {self_lnk}')
+                except Exception as e:
+                    print(e)
+                    import traceback
+                    traceback.print_exc()
+
+        print('col details 3', collected_details3)
+
 
         # # if good client
         # # create new patient
