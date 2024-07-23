@@ -43,6 +43,9 @@ class UserDetail(db.Model):
     children = db.Column(db.String(10))
     phone_number = db.Column(db.String(20))
     npid = db.Column(db.String(100))
+    home_address = db.Column(db.String(100))
+    surname = db.Column(db.String(100))
+    birth_date = db.Column(db.String(100))
 
 
 # Ensure tables are created within the application context
@@ -174,13 +177,14 @@ def create_new_patient(child_fn, child_ln, child_gender, child_addr, phone, chil
     return data
 
 
-def create_self_patient(name, age, phone, email_addr, full_birthdate, house_address, last_name):
+def create_self_patient(name, phone, email_addr, full_birthdate, house_address, last_name):
     url = "https://api.au1.cliniko.com/v1/patients"
     name = str(name)
-    age = str(age)
+    full_birthdate = str(full_birthdate)
     phone = str(phone)
     email_addr = str(email_addr)
-    dob = str(age)
+    house_address = str(house_address)
+    last_name = str(last_name)
 
     payload = {
         "accepted_privacy_policy": True,
@@ -214,22 +218,25 @@ def create_self_patient(name, age, phone, email_addr, full_birthdate, house_addr
     return data
 
 
-def create_new_appt(patient_id):
+def create_new_appt(patient_id, appt_type='initial consult', appt_id="60586", practitioner_id='22152'):
     appt_url = "https://api.au1.cliniko.com/v1/individual_appointments"
-
+    if appt_type == "initial consult":
+        appt_id = "60586"
+    elif appt_type == "intro phone call":
+        appt_id = '1215064152993695622'
     start_date = datetime.today().strftime('%Y-%m-%d')
     headers = {
         'Authorization': f'Basic {encoded_credentials}',
         'Content-Type': 'application/json',
     }
     appt_payload = {
-        "appointment_type_id": "60586",
+        "appointment_type_id": f"{appt_id}",
         "business_id": "15310",
         # "ends_at": "2019-08-24T14:15:22Z",
         # "notes": "string",
         "patient_id": patient_id,  # '1427472976856483735',  # f"{new_patient_data['id']}",
         # "patient_case_id": "1",
-        "practitioner_id": '22152',
+        "practitioner_id": f'{practitioner_id}',
         "starts_at": start_date,
         # "repeat_rule": {
         #   "number_of_repeats": 0,
@@ -401,9 +408,8 @@ def chat_nu():
                 print('finished collecting additional details', collected_details3)
 
                 try:
-                    # (name, age, phone, email_addr, full_birthdate, house_address, last_name):
+                    # (name, phone, email_addr, full_birthdate, house_address, last_name):
                     new_pat = create_self_patient(name=collected_details['name'],
-                                                  age=collected_details['age'],
                                                   phone=collected_details['phone number'],
                                                   email_addr=collected_details['email'],
                                                   full_birthdate=collected_details3['birth date'],
@@ -411,12 +417,19 @@ def chat_nu():
                                                   last_name=collected_details3['surname'])
 
                     npid = new_pat['id']
-                    new_appt = create_new_appt(npid)
+                    if "introductory phone call" in user_message:
+                        appt_type = 'intro phone call'
+                    else:
+                        appt_type = 'initial consult'
+                    new_appt = create_new_appt(npid, appt_type)
                     self_lnk = new_appt['links']['self']
                     # Update the UserDetail with the new patient ID (npid)
                     user_detail = UserDetail.query.filter_by(email=collected_details['email']).first()
                     if user_detail:
                         user_detail.npid = npid
+                        user_detail.home_address = collected_details3['home address']
+                        user_detail.surname = collected_details3['surname']
+                        user_detail.birth_date = collected_details3['birth date']
                         db.session.commit()
                         print(f'Updated user {user_detail.name} with new patient ID {npid} and appt link {self_lnk}')
                 except Exception as e:
@@ -425,7 +438,6 @@ def chat_nu():
                     traceback.print_exc()
 
         print('col details 3', collected_details3)
-
 
         # # if good client
         # # create new patient
@@ -451,8 +463,42 @@ def chat_nu():
         pass
 
 
+user_detail_cache = None
+
+
+def check_for_appt_type(msg):
+    llm = ChatOpenAI(model='gpt-4-turbo-2024-04-09',  # gpt-4o-2024-05-13
+                     openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
+    memory = ConversationBufferMemory(memory_key="get_apt_type", return_messages=True)
+    sys_prompt = f"""The user says: "{msg}", Just incase the text is long and not straightforward, Look for the main 
+    information in the user's input and extract it. main information is exactly anyone from this list of therapies:
+        1. Retained Reflex Review (RRR)
+        2. Retained Reflex Review and Auditory 
+        3. DMP Session at CDC
+        4. DMP Session Online 
+        5. Online Retained Reflex Review, 
+    so just scan the user's text and figure out which appointment they're trying to
+    book, and return exactly the keyword from the list provided. for example user might mention just Retained Reflex,
+    ask them if it's either Retained Reflex Review (RRR) or Retained Reflex Review and Auditory. and return the exact 
+    keyword for one with they want.
+    also if they just choose DMP Session, ask them if either DMP Session CDC or DMP Session Online , if they choose DMP
+    session at CDC , then return DMP Session at CDC as the keyword.
+    """
+    prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
+                                               MessagesPlaceholder(variable_name="get_apt_type"),
+                                               HumanMessagePromptTemplate.from_template("{msg}")])
+    conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
+
+    memory.chat_memory.add_user_message(msg)
+    response = conversation.invoke({"text": msg})
+    print("entity", response['text'])
+    return response['text']
+    pass
+
+
 @app.route('/chat_ru', methods=['POST'])
 def chat_ru():
+    global user_detail_cache
     try:
         data = request.get_json()
         user_message = data['text']
@@ -461,65 +507,196 @@ def chat_ru():
         user_name = user_message.strip()
 
         # Query the database for the user with the provided name
-        user_detail = UserDetail.query.filter_by(email=user_name).first()
+        # user_detail = UserDetail.query.filter_by(email=user_name).first()
+        if not user_detail_cache:
+            user_detail_cache = UserDetail.query.filter_by(email=user_name).first()
+
+        # url = "https://api.au1.cliniko.com/v1/appointment_types"
+        # headers = {
+        #     # Add your required headers here, for example:
+        #     'Authorization': f'Basic {encoded_credentials}',
+        #     'Content-Type': 'application/json',
+        # }
+        # query = {
+        #     "order": "asc",
+        #     # "page": "110",
+        #     # "per_page": "10",
+        #     # "q[]": "string",
+        #     # "sort": "created_at:desc"
+        # }
+        # response = requests.get(url, params=query, headers=headers)
+        #
+        # data = response.json()
+        data = [{'name': "Retained Reflex Review", 'id': '60585', 'category': 'Retained Reflex Therapy'},
+                {'name': "Retained Reflex Review and Auditory", 'id': '60591', 'category': 'Retained Reflex Therapy'},
+                {'name': "DMP Session at CDC", 'id': '516802', 'category': 'Psychotherapy'},
+                {'name': "DMP Session Online", 'id': '516804', 'category': 'Psychotherapy'},
+                {'name': "Online Retained Reflex Review", 'id': '459735', 'category': 'Retained Reflex Therapy'}]
+        # print('url', url)
+        # print('appt data', data)
 
         init_message = " "
+        appt_message = " "
+        add_details_prmt = " "
         print(user_message)
+        user_data_got = None
 
-        if user_detail:
+        # if user_detail:
+        #     # If the user exists, return their details
+        #     user_data = {
+        #         # 'id': user_detail.id,
+        #         # 'user_id': user_detail.user_id,
+        #         'name': user_detail.name,
+        #         'age': user_detail.age,
+        #         'email': user_detail.email,
+        #         'children': user_detail.children,
+        #         'phone_number': user_detail.phone_number
+        #     }
+
+        npid_ = False
+
+        if user_detail_cache:
+            print(user_detail_cache.npid)
             # If the user exists, return their details
             user_data = {
-                # 'id': user_detail.id,
-                # 'user_id': user_detail.user_id,
-                'name': user_detail.name,
-                'age': user_detail.age,
-                'email': user_detail.email,
-                'children': user_detail.children,
-                'phone_number': user_detail.phone_number
+                # 'id': user_detail_cache.id,
+                # 'user_id': user_detail_cache.user_id,
+                'name': user_detail_cache.name,
+                'age': user_detail_cache.age,
+                'email': user_detail_cache.email,
+                'children': user_detail_cache.children,
+                'phone_number': user_detail_cache.phone_number
             }
+            npid_ = True if user_detail_cache.npid else False
+            try:
+                user_data_got = (", ".join([f"'{key}': '{value}'" for key, value in user_data.items()]))
+            except:
+                pass
 
-            print(user_data)
-
-            init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
+            # init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
         # else:
         #     if user_detail is None:
         #         init_message = (f"user message {user_name} does not exist, ignore the rest of the message, and return"
         #                         f"just that")
 
-        print(init_message)
+        # print(init_message)
+        for appts in data:
+            # print(appts)
+            if user_message in appts['name']:
+                appt_id = (appts['id'])
+                print('appt found', appt_id)
+                print(user_detail_cache.npid)
+                try:
+                    # create new patient
+                    # (name, phone, email_addr, full_birthdate, house_address, last_name)
+                    if not npid_:
+                        print('user wants appt 2, but details incomplete')
+                        # add_details_prmt = """Ask for more additional details: NOTE: make sure this exact
+                        # sentence/words are in the questions you would be asking one after the other, cos the keywords
+                        # would be needed in the Python code - surname - full birth date in this format "YYYY-MM-DD" -
+                        # home address
+                        #
+                        #      ** Never list all of those details for them at once, just ask one after the other,
+                        #      without mentioning something like: To proceed with the booking, I'll need a few more
+                        #      details from you: 1. **Home address** 🏡 2. **Full birth date** in this format
+                        #      "YYYY-MM-DD" 🎂 3. **Surname** 📛 Could you please provide these details one by one?
+                        #      just do it like this instead: To proceed with the booking, I'll need a few more details
+                        #      from you, could you please provide your surname? once they provide it, then proceed to
+                        #      next detail... after collecting all....
+                        #
+                        # """
+                        add_details_prmt = f"""Let the users know that they do not have the access to make {user_message}
+                        appointment type yet, they need too go back to the new user section and book an initial
+                         consultation appointment before they're able to proceed with other appointment types..
+                         In whatever case, if they're interested in booking the intial consultation appointment, 
+                         ask them to either refresh or go back to the new user section in the front page of the bot.
+                         if they don't want to, ask them if there's anything you can help them with, if there's nothing,
+                         nicely end the conversation, else.. proceed to taking care of their questions
+                        """
+                    new_pat = create_self_patient(name=user_detail_cache.name,
+                                                  full_birthdate=user_detail_cache.birth_date,
+                                                  email_addr=user_detail_cache.email,
+                                                  phone=user_detail_cache.phone_number,
+                                                  house_address=user_detail_cache.home_address,
+                                                  last_name=user_detail_cache.surname)
+                    # create new appt
+                    appt_type = appts['category']
+                    # patient_id, appt_type='initial consult', appt_id="60586", practitioner_id='22152'
+                    new_appt = create_new_appt(patient_id=new_pat['id'], appt_type=appt_type, appt_id=appt_id)
+                    if new_appt:
+                        print(f'Updated {user_detail_cache.name} to appt type {appt_type}')
+
+                        appt_prmt = (f"new user has made {user_message} kind of appointment, greet and ask if there's "
+                                     f"anything else you can help them with, if NO, end the convo, if YES, proceed to "
+                                     f"help them more, based on the whole system prompt")
+                        appt_message = appt_prmt
+                    break
+                except Exception as e:
+                    print(e)
+                    import traceback
+                    traceback.print_exc()
         sys_prmt = \
-            """- **Objective:** You're a CDC bot, you already talked to users and collected all their information, 
-            Let returning users know that you're CDC BOT Assistant named Amara, you're available to Support users and 
-            their families on their journey, providing information and tailored assistance, based on their info.. ** 
-            don't ask them to confirm their info, unless they input their email and if it's found! ** if you get any 
-            greetings message like Hi, Hey, Hola.. still let them know they need to input their email address so you 
-            can check if you have their info ** Use as much emoji as you can, just to make sure, you're friendly and 
-            polite enough to them, as a returning user ** if their phone number is empty, just let them know it's 
-            empty, don't come up with random numbers!! ** Never tell them to Please wait a moment to check if you 
-            have their details or anything similar, just directly tell them if you have it or not. ** if user details 
+            f"""- **Objective:** You're a CDC bot, you already talked to users and collected all their information,
+            Let returning users know that you're CDC BOT Assistant named Amara, you're available to Support users and
+            their families on their journey, providing information and tailored assistance, based on their info.. **
+            don't ask them to confirm their info, unless they input their email and if it's found! ** if you get any
+            greetings message like Hi, Hey, Hola.. still let them know they need to input their email address so you
+            can check if you have their info ** Use as much emoji as you can, just to make sure, you're friendly and
+            polite enough to them, as a returning user ** if their phone number is empty, just let them know it's
+            empty, don't come up with random numbers!! ** Never tell them to Please wait a moment to check if you
+            have their details or anything similar, just directly tell them if you have it or not. ** if user details
             is not found, don't make up anything and just return to them that it's not found!!
 
-                - Here's the Users Details "user_data", if their details is correct, Greet them properly!, and list their 
-                info for them to crosscheck: Hey [their info details, such as age, children, phone number], so great to 
-                see you again (insert name). How's your health been since I saw you last? Include MAYBE AN EMOJI to make 
-                it lively. wait until you receive another response from them before proceeding to ask questions, 
-                they might have something to say, so don't be too straightforward with your questions, and make your 
+            - Here's the Users Details {user_data_got},
+                if user data is empty or none, let them know you cannot find their details in our record, else
+                 if their detail is correct and there are no missing details, Greet them properly!, and list their
+                info for them to crosscheck: Hey [their info details, such as age, children, phone number], so great to
+                see you again (insert name). How's your health been since I saw you last? Include MAYBE AN EMOJI to make
+                it lively. wait until you receive another response from them before proceeding to ask questions,
+                they might have something to say, so don't be too straightforward with your questions, and make your
                 questions as detailed as possible.
-    
-                - Do not ever repeat the output response again... Just focus on Proceeding, make sure you're able to 
-                handle any form of convo!
-    
-                 - Then Proceed to ask if they want to schedule another appointment of type 2
-    
-                     if Users in inputs Yes, tell them the feature is coming soon,
-    
-                     if users inputs No, ask them... how you can help them? Just do not return their details again, 
-                     after the first time..
+                 ** most important part, never ask them to hold on that you're checking for their details or similar sentence,
+                  just let them know immediately they input their email address so you
 
+                - Do not ever repeat the output response again... Just focus on Proceeding, make sure you're able to
+                handle any form of convo!
+                
+                *** Politely ask them if they want to make another appointment or there's something after figuring out if they're fine, so you need to check if they're fine before proceeding to new appointment section.
+                    if they want another appointment, then proceed to next like, you just need to confirm that they want another appointment before you proceed to list the available appointments for them,
+
+                 - If they want another appointment, Then Proceed:
+                
+                     if Users in inputs positive response that they want new appointment:
+                        ask them what type of appointment would they like to make from the list below and briefly explain to them what they are:
+                            ** the appointment category is to be used for basic explanation, tell them to please choose from the list of available appointments
+                            [
+                                ('appointment name: ', 'Retained Reflex Review (RRR)', 
+                                    'appointment category: ', 'Retained Reflex Therapy'),        
+                                ('appointment name: ', 'Retained Reflex Review and Auditory',
+                                        'appointment category: ', 'Retained Reflex Therapy'),
+                                ('appointment name: ', 'D.M.P. Session @ CDC, SW11',
+                                        'appointment category: ', 'Psychotherapy'),
+                                ('appointment name: ', 'D.M.P. Session - Online', 
+                                        'appointment category: ', 'Psychotherapy'),
+                                ('appointment name: ', 'Online Retained Reflex Review',
+                                    'appointment category: ', 'Retained Reflex Therapy',)
+                            ]
+                            
+            "Retained Reflex Review (Online)": 459735
+
+              if they choose to do any of the above, then proceed to ask them for their personal details:
+                # retrieve their basic details
+                # ask more details.
+    
+
+                if users inputs No, ask them... how you can help them? Just do not return their details again, after the first time..
             """
 
         # Generate a unique identifier for each user
-        full_msg = init_message + "\n" + sys_prmt
+        # print('code reach here 1')
+        full_msg = sys_prmt + "\n" + add_details_prmt  # init_message + "\n" + sys_prmt + "\n" + add_details_prmt
+        if appt_message != " ":
+            full_msg = full_msg + "\n" + appt_message
         # del init_message
         user_id = request.remote_addr + str(request.user_agent)
         if user_id not in user_states1:
@@ -541,6 +718,7 @@ def chat_ru():
 
         # Add user message to the memory
         memory.chat_memory.add_user_message(str(user_message))
+        # print('code reach here 2')
 
         response = conversation.invoke({"text": str(user_message)})
         response_text = response['text']
@@ -549,6 +727,8 @@ def chat_ru():
 
     except Exception as e:
         print(e)
+        import traceback
+        traceback.print_exc()
         return jsonify({'response': str(e)})
 
 

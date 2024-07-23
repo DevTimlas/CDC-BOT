@@ -246,6 +246,13 @@
                     appendOptions(["General information on CDC UK", "Immediate support", "Help with a specific issue", "Exploring support or therapy options"]);
                     appendMessage('Please choose one option from the above that best describes your need', 'bot');
                 }
+                if (sender === "bot" && (message.includes("please choose from the list of available appointments"))) {
+                    var splitIndex_apt = message.indexOf("Please choose one of the following options");
+                    console.log(message)
+                    bubbleElement.textContent = message.substring(0, splitIndex_apt).trim();
+                    appendOptions(["Retained Reflex Review", "Retained Reflex Review and Auditory", "DMP Session at CDC", "DMP Session Online", "Online Retained Reflex Review"]);
+                    appendMessage('Please choose one option from the above that best describes your need', 'bot');
+                }
             }
 
             function appendOptions(options) {
