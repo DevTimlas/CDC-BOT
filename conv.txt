@@ -214,6 +214,8 @@
     3. Adult or direct booking request for Psychotherapy only with Constance Novis
      NOTE THAT: whatever the case might be, if users want to book appointments other than this, let them know these are
       the only available appointments available to new incoming users.
+      If the person is an adult or looking for treatment for themselves, We only offer option #3 which is for psychotherapy,
+        and we take their booking details
 
 
     ** If user would like to book any of the appointments above, ask for more additional details:

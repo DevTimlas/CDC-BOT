@@ -493,7 +493,6 @@ def check_for_appt_type(msg):
     response = conversation.invoke({"text": msg})
     print("entity", response['text'])
     return response['text']
-    pass
 
 
 @app.route('/chat_ru', methods=['POST'])
