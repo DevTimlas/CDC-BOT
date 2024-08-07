@@ -112,7 +112,7 @@ def clean_input(text, llm_type=0):
     the keyword "child's contact number". - if they add a punctuation at the end of their details example 3' or 
     John*, remove it and return modified one which is 3 or John. 
     - if they're inputting their email as in this pattern; xxx@yyy.zzz, you should return it exactly the way they input it.
-                      
+
     """
     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
                                                MessagesPlaceholder(variable_name="clean_msg"),
@@ -569,6 +569,7 @@ def chat_ru():
             npid_ = True if user_detail_cache.npid else False
             try:
                 user_data_got = (", ".join([f"'{key}': '{value}'" for key, value in user_data.items()]))
+                print(user_data_got)
             except:
                 pass
 
@@ -659,12 +660,12 @@ def chat_ru():
 
                 - Do not ever repeat the output response again... Just focus on Proceeding, make sure you're able to
                 handle any form of convo!
-                
+
                 *** Politely ask them if they want to make another appointment or there's something after figuring out if they're fine, so you need to check if they're fine before proceeding to new appointment section.
                     if they want another appointment, then proceed to next like, you just need to confirm that they want another appointment before you proceed to list the available appointments for them,
 
                  - If they want another appointment, Then Proceed:
-                
+
                      if Users in inputs positive response that they want new appointment:
                         ask them what type of appointment would they like to make from the list below and briefly explain to them what they are:
                             ** the appointment category is to be used for basic explanation, tell them to please choose from the list of available appointments
@@ -680,13 +681,13 @@ def chat_ru():
                                 ('appointment name: ', 'Online Retained Reflex Review',
                                     'appointment category: ', 'Retained Reflex Therapy',)
                             ]
-                            
+
             "Retained Reflex Review (Online)": 459735
 
               if they choose to do any of the above, then proceed to ask them for their personal details:
                 # retrieve their basic details
                 # ask more details.
-    
+
 
                 if users inputs No, ask them... how you can help them? Just do not return their details again, after the first time..
             """
@@ -710,7 +711,7 @@ def chat_ru():
         prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(full_msg),
                                                    MessagesPlaceholder(variable_name=rand_key),
                                                    HumanMessagePromptTemplate.from_template("{text}")])
-        llm = ChatOpenAI(temperature=0.2, model='gpt-4o-2024-05-13',
+        llm = ChatOpenAI(temperature=0.2, model='gpt-4o-2024-08-06',
                          openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
 
         conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
