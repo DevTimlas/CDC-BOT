@@ -710,7 +710,7 @@ def chat_ru():
         prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(full_msg),
                                                    MessagesPlaceholder(variable_name=rand_key),
                                                    HumanMessagePromptTemplate.from_template("{text}")])
-        llm = ChatOpenAI(temperature=0.2, model='gpt-4',
+        llm = ChatOpenAI(temperature=0.2, model='gpt-4o-2024-05-13',
                          openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
 
         conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
