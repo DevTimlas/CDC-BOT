@@ -608,7 +608,7 @@ def chat_ru():
                         add_details_prmt = f"""Let the users know that they do not have the access to make {user_message}
                         appointment type yet, they need too go back to the new user section and book an initial
                          consultation appointment before they're able to proceed with other appointment types..
-                         In whatever case, if they're interested in booking the intial consultation appointment, 
+                         In whatever case, if they're interested in booking the initial consultation appointment, 
                          ask them to either refresh or go back to the new user section in the front page of the bot.
                          if they don't want to, ask them if there's anything you can help them with, if there's nothing,
                          nicely end the conversation, else.. proceed to taking care of their questions
@@ -711,8 +711,9 @@ def chat_ru():
         prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(full_msg),
                                                    MessagesPlaceholder(variable_name=rand_key),
                                                    HumanMessagePromptTemplate.from_template("{text}")])
-        llm = ChatOpenAI(temperature=0.2, model='gpt-4o-2024-08-06',
-                         openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
+        llm = ChatOpenAI(temperature=0.2, model='gpt-4-turbo-2024-04-09',
+                         openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe",
+                         max_tokens=100)
 
         conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
 
