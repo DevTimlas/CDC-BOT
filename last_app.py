@@ -283,7 +283,7 @@ def chat_nu():
         collected_details2 = user_state['collected_details2']
         memory = user_state['memory']
 
-        conversation = ask_ai(memory, 'conv.txt', 'gpt-4o-2024-05-13',
+        conversation = ask_ai(memory, 'conv.txt', 'gpt-4-turbo-2024-04-09',
                               llm_type=0)  # gpt-4o-2024-05-13 # gpt-4-turbo-2024-04-09
 
         # Add a user message to the memory
