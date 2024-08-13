@@ -463,8 +463,6 @@ def chat_nu():
         pass
 
 
-user_detail_cache = None
-
 
 def check_for_appt_type(msg):
     llm = ChatOpenAI(model='gpt-4-turbo-2024-04-09',  # gpt-4o-2024-05-13
@@ -494,10 +492,13 @@ def check_for_appt_type(msg):
     print("entity", response['text'])
     return response['text']
 
+user_detail_cache = None
+
 
 @app.route('/chat_ru', methods=['POST'])
 def chat_ru():
     global user_detail_cache
+    user_detail_cache = None
     try:
         data = request.get_json()
         user_message = data['text']
@@ -510,22 +511,7 @@ def chat_ru():
         if not user_detail_cache:
             user_detail_cache = UserDetail.query.filter_by(email=user_name).first()
 
-        # url = "https://api.au1.cliniko.com/v1/appointment_types"
-        # headers = {
-        #     # Add your required headers here, for example:
-        #     'Authorization': f'Basic {encoded_credentials}',
-        #     'Content-Type': 'application/json',
-        # }
-        # query = {
-        #     "order": "asc",
-        #     # "page": "110",
-        #     # "per_page": "10",
-        #     # "q[]": "string",
-        #     # "sort": "created_at:desc"
-        # }
-        # response = requests.get(url, params=query, headers=headers)
-        #
-        # data = response.json()
+
         data = [{'name': "Retained Reflex Review", 'id': '60585', 'category': 'Retained Reflex Therapy'},
                 {'name': "Retained Reflex Review and Auditory", 'id': '60591', 'category': 'Retained Reflex Therapy'},
                 {'name': "DMP Session at CDC", 'id': '516802', 'category': 'Psychotherapy'},
@@ -540,18 +526,6 @@ def chat_ru():
         add_details_prmt = " "
         # print(user_message)
         user_data_got = None
-
-        # if user_detail:
-        #     # If the user exists, return their details
-        #     user_data = {
-        #         # 'id': user_detail.id,
-        #         # 'user_id': user_detail.user_id,
-        #         'name': user_detail.name,
-        #         'age': user_detail.age,
-        #         'email': user_detail.email,
-        #         'children': user_detail.children,
-        #         'phone_number': user_detail.phone_number
-        #     }
 
         npid_ = False
 
@@ -589,20 +563,7 @@ def chat_ru():
                     # (name, phone, email_addr, full_birthdate, house_address, last_name)
                     if not npid_:
                         print('user wants appt 2, but details incomplete')
-                        # add_details_prmt = """Ask for more additional details: NOTE: make sure this exact
-                        # sentence/words are in the questions you would be asking one after the other, cos the keywords
-                        # would be needed in the Python code - surname - full birth date in this format "YYYY-MM-DD" -
-                        # home address
-                        #
-                        #      ** Never list all of those details for them at once, just ask one after the other,
-                        #      without mentioning something like: To proceed with the booking, I'll need a few more
-                        #      details from you: 1. **Home address** 🏡 2. **Full birth date** in this format
-                        #      "YYYY-MM-DD" 🎂 3. **Surname** 📛 Could you please provide these details one by one?
-                        #      just do it like this instead: To proceed with the booking, I'll need a few more details
-                        #      from you, could you please provide your surname? once they provide it, then proceed to
-                        #      next detail... after collecting all....
-                        #
-                        # """
+
                         add_details_prmt = f"""Let the users know that they do not have the access to make {user_message}
                         appointment type yet, they need too go back to the new user section and book an initial
                          consultation appointment before they're able to proceed with other appointment types..
