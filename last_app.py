@@ -566,6 +566,7 @@ def chat_ru():
                 'children': user_detail_cache.children,
                 'phone_number': user_detail_cache.phone_number
             }
+            init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
             npid_ = True if user_detail_cache.npid else False
             try:
                 user_data_got = (", ".join([f"'{key}': '{value}'" for key, value in user_data.items()]))
@@ -574,10 +575,9 @@ def chat_ru():
                 pass
 
             # init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
-        # else:
-        #     if user_detail is None:
-        #         init_message = (f"user message {user_name} does not exist, ignore the rest of the message, and return"
-        #                         f"just that")
+        else:
+            init_message = (f"user message {user_name} does not exist, ignore the rest of the message, and return"
+                            f"just that, and ask user to cross check and input correct email!")
 
         # print(init_message)
         for appts in data:
@@ -635,6 +635,7 @@ def chat_ru():
                     print(e)
                     import traceback
                     traceback.print_exc()
+        print('usr det' ,user_data_got)
         sys_prmt = \
             f"""- **Objective:** You're a CDC bot, you already talked to users and collected all their information,
             Let returning users know that you're CDC BOT Assistant named Amara, you're available to Support users and
@@ -647,8 +648,8 @@ def chat_ru():
             have their details or anything similar, just directly tell them if you have it or not. ** if user details
             is not found, don't make up anything and just return to them that it's not found!!
 
-            - Here's the Users Details {user_data_got},
-                if user data is empty or none, let them know you cannot find their details in our record, else
+            - Here's the Users Details {user_data_got} it can either be empty or contains basic information of a particular user,
+                if user data is empty or None, let them know you cannot find their details in our record, else
                  if their detail is correct and there are no missing details, Greet them properly!, and list their
                 info for them to crosscheck: Hey [their info details, such as age, children, phone number], so great to
                 see you again (insert name). How's your health been since I saw you last? Include MAYBE AN EMOJI to make
@@ -694,10 +695,11 @@ def chat_ru():
 
         # Generate a unique identifier for each user
         # print('code reach here 1')
-        full_msg = sys_prmt + "\n" + add_details_prmt  # init_message + "\n" + sys_prmt + "\n" + add_details_prmt
+        print(init_message)
+        full_msg = init_message + "\n" + sys_prmt + "\n" + add_details_prmt  # init_message + "\n" + sys_prmt + "\n" + add_details_prmt
         if appt_message != " ":
             full_msg = full_msg + "\n" + appt_message
-        # del init_message
+        del init_message
         user_id = request.remote_addr + str(request.user_agent)
         if user_id not in user_states1:
             user_states1[user_id] = {
@@ -711,9 +713,9 @@ def chat_ru():
         prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(full_msg),
                                                    MessagesPlaceholder(variable_name=rand_key),
                                                    HumanMessagePromptTemplate.from_template("{text}")])
-        llm = ChatOpenAI(temperature=0.2, model='gpt-4-turbo-2024-04-09',
+        llm = ChatOpenAI(temperature=0.2, model='gpt-4o-2024-05-13',
                          openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe",
-                         max_tokens=100)
+                         )
 
         conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
 
