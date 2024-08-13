@@ -534,10 +534,11 @@ def chat_ru():
         # print('url', url)
         # print('appt data', data)
 
-        init_message = " "
+        init_message1 = " "
+        init_message2 = " "
         appt_message = " "
         add_details_prmt = " "
-        print(user_message)
+        # print(user_message)
         user_data_got = None
 
         # if user_detail:
@@ -566,20 +567,17 @@ def chat_ru():
                 'children': user_detail_cache.children,
                 'phone_number': user_detail_cache.phone_number
             }
-            init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
+            init_message1 = f"here are my details {user_data.items()}, let's continue/proceed!"
             npid_ = True if user_detail_cache.npid else False
             try:
                 user_data_got = (", ".join([f"'{key}': '{value}'" for key, value in user_data.items()]))
-                print(user_data_got)
             except:
                 pass
 
-            # init_message = f"here are my details {user_data.items()}, let's continue/proceed!"
         else:
-            init_message = (f"user message {user_name} does not exist, ignore the rest of the message, and return"
+            init_message2 = (f"user message {user_name} does not exist, ignore the rest of the message, and return"
                             f"just that, and ask user to cross check and input correct email!")
 
-        # print(init_message)
         for appts in data:
             # print(appts)
             if user_message in appts['name']:
@@ -635,7 +633,6 @@ def chat_ru():
                     print(e)
                     import traceback
                     traceback.print_exc()
-        print('usr det' ,user_data_got)
         sys_prmt = \
             f"""- **Objective:** You're a CDC bot, you already talked to users and collected all their information,
             Let returning users know that you're CDC BOT Assistant named Amara, you're available to Support users and
@@ -693,13 +690,14 @@ def chat_ru():
                 if users inputs No, ask them... how you can help them? Just do not return their details again, after the first time..
             """
 
-        # Generate a unique identifier for each user
-        # print('code reach here 1')
-        print(init_message)
-        full_msg = init_message + "\n" + sys_prmt + "\n" + add_details_prmt  # init_message + "\n" + sys_prmt + "\n" + add_details_prmt
+        if user_detail_cache:
+            print('running on 1')
+            full_msg = init_message1 + "\n" + sys_prmt + "\n" + add_details_prmt 
+        if not user_detail_cache:
+            print('running on 2')
+            full_msg = init_message2 + "\n" + sys_prmt + "\n" + add_details_prmt
         if appt_message != " ":
             full_msg = full_msg + "\n" + appt_message
-        del init_message
         user_id = request.remote_addr + str(request.user_agent)
         if user_id not in user_states1:
             user_states1[user_id] = {
@@ -713,7 +711,7 @@ def chat_ru():
         prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(full_msg),
                                                    MessagesPlaceholder(variable_name=rand_key),
                                                    HumanMessagePromptTemplate.from_template("{text}")])
-        llm = ChatOpenAI(temperature=0.2, model='gpt-4o-2024-05-13',
+        llm = ChatOpenAI(temperature=0.2, model='gpt-4-turbo-2024-04-09',
                          openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe",
                          )
 
