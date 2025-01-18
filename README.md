@@ -1,1 +1,1 @@
-# Child Developenent Center Chatbot with Cliniko API for appointments
+# Child Developenent Centre Chatbot with Cliniko API for appointments
