@@ -23,12 +23,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuration for SQLAlchemy and SQLite
-postgres = ("postgresql://user_details_haex_user:3aK54eW8gVFodhyKNcVH5AE59wp2ietV@dpg-cpepfp7sc6pc73a1m9i0-a.oregon"
-            "-postgres.render.com/user_details_haex")
 
-pg2 = ("postgresql://avnadmin:AVNS_UfEmJtUzKREg8ZI8OSV@pg-5fa3219-timcodedata-131f.c.aivencloud.com:13352/defaultdb"
-       "?sslmode=require")
-app.config['SQLALCHEMY_DATABASE_URI'] = pg2  # 'sqlite:///user_details.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')  # 'sqlite:///user_details.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -59,11 +55,11 @@ rand_key = str(uuid.uuid4())
 
 def ask_ai(memory, sys_prompt_file, model_type, llm_type=0):
     if llm_type == 0:
-        llm = ChatOpenAI(temperature=0, openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe",
+        llm = ChatOpenAI(temperature=0, openai_api_key=os.getenv('OPENAI_API_KEY'),
                          model=model_type)  # -turbo-2024-04-09 max_tokens=3095
     elif llm_type == 1:
         llm = ChatGroq(temperature=0, model="llama3-70b-8192",
-                       api_key="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")
+                       api_key=os.getenv('GROQ_API_KEY'))
     else:
         raise Exception("Invalid llm type")
 
@@ -78,7 +74,7 @@ def ask_ai(memory, sys_prompt_file, model_type, llm_type=0):
 
 
 # def chat_returning_user(memory):
-#     llm = ChatOpenAI(temperature=0, openai_api_key="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",
+#     llm = ChatOpenAI(temperature=0, openai_api_key=os.getenv('OPENAI_API_KEY'),
 #                      model='gpt-4')  # -turbo-2024-04-09 max_tokens=3095
 #     sys_prompt = open('conv_rtn.txt', 'r').read().strip()
 #     prompt = ChatPromptTemplate.from_messages([SystemMessagePromptTemplate.from_template(sys_prompt),
@@ -92,10 +88,10 @@ def ask_ai(memory, sys_prompt_file, model_type, llm_type=0):
 def clean_input(text, llm_type=0):
     if llm_type == 0:
         llm = ChatOpenAI(model='gpt-4-turbo-2024-04-09',  # gpt-4o-2024-05-13
-                         openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
+                         openai_api_key=os.getenv('OPENAI_API_KEY'))
     elif llm_type == 1:
         llm = ChatGroq(temperature=0, model="llama3-70b-8192",
-                       api_key="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")
+                       api_key=os.getenv('GROQ_API_KEY'))
     else:
         raise Exception("Invalid llm type for cleaning text...")
     memory = ConversationBufferMemory(memory_key="clean_msg", return_messages=True)
@@ -466,7 +462,7 @@ def chat_nu():
 
 def check_for_appt_type(msg):
     llm = ChatOpenAI(model='gpt-4-turbo-2024-04-09',  # gpt-4o-2024-05-13
-                     openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe")
+                     openai_api_key=os.getenv('OPENAI_API_KEY'))
     memory = ConversationBufferMemory(memory_key="get_apt_type", return_messages=True)
     sys_prompt = f"""The user says: "{msg}", Just incase the text is long and not straightforward, Look for the main 
     information in the user's input and extract it. main information is exactly anyone from this list of therapies:
@@ -673,7 +669,7 @@ def chat_ru():
                                                    MessagesPlaceholder(variable_name=rand_key),
                                                    HumanMessagePromptTemplate.from_template("{text}")])
         llm = ChatOpenAI(temperature=0.2, model='gpt-4-turbo-2024-04-09',
-                         openai_api_key="sk-proj-FBjqom2m67JasQzCTfxhT3BlbkFJ8gt1lQAZDCKwv6Q3VOMe",
+                         openai_api_key=os.getenv('OPENAI_API_KEY'),
                          )
 
         conversation = LLMChain(llm=llm, prompt=prompt, memory=memory)
